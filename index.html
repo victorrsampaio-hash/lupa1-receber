@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lupa1 Desk</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:'Segoe UI',system-ui,sans-serif;
+  background:#edf2fa;
+  min-height:100vh;
+  display:flex;align-items:center;justify-content:center;
+  padding:24px;
+}
+.hub{width:100%;max-width:640px;text-align:center}
+.hub-logo{font-size:38px;font-weight:800;color:#1e4a8a;letter-spacing:-1px;margin-bottom:6px}
+.hub-logo span{color:#4caf50}
+.hub-sub{font-size:13px;color:#7a90b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:40px}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media (max-width:520px){.cards{grid-template-columns:1fr}}
+.card{
+  background:#fff;border:1px solid #c8d8f0;border-radius:16px;
+  padding:36px 24px;text-decoration:none;color:#1a2540;
+  display:flex;flex-direction:column;align-items:center;gap:14px;
+  transition:transform .15s ease, box-shadow .15s ease;
+}
+.card:hover{transform:translateY(-3px);box-shadow:0 10px 24px rgba(30,74,138,.15)}
+.card-icon{
+  width:56px;height:56px;border-radius:14px;background:#e4edf8;
+  display:flex;align-items:center;justify-content:center;color:#1e4a8a;
+}
+.card-icon svg{width:28px;height:28px}
+.card-title{font-size:16px;font-weight:600}
+.card-sub{font-size:12px;color:#7a90b8}
+</style>
+</head>
+<body>
+<div class="hub">
+  <div class="hub-logo">Lupa<span>1</span></div>
+  <div class="hub-sub">Desk · Sistemas internos</div>
+  <div class="cards">
+    <a class="card" href="comercial.html">
+      <div class="card-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      </div>
+      <div class="card-title">Sistema Comercial</div>
+      <div class="card-sub">Contas a receber, clientes e notas fiscais</div>
+    </a>
+    <a class="card" href="licitacoes.html">
+      <div class="card-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c1.5 0 2.9.37 4.14 1.02"/></svg>
+      </div>
+      <div class="card-title">Painel de Licitações</div>
+      <div class="card-sub">OBR · Processos e etapas por cliente</div>
+    </a>
+  </div>
+</div>
+</body>
+</html>
