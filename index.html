@@ -134,6 +134,18 @@ textarea{resize:vertical;min-height:60px}
 /* LOADING OVERLAY */
 .loading-overlay{position:fixed;inset:0;background:rgba(247,246,243,.9);z-index:400;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
 .loading-overlay.hide{display:none}
+.login-overlay{position:fixed;inset:0;background:#1e4a8a;z-index:500;display:flex;align-items:center;justify-content:center;padding:20px}
+.login-overlay.hide{display:none}
+.login-box{background:#fff;border-radius:16px;padding:32px 28px;width:100%;max-width:360px;text-align:center}
+.login-logo{font-size:36px;font-weight:800;color:#1e4a8a;letter-spacing:-1px;margin-bottom:4px}
+.login-logo span{color:#4caf50}
+.login-sub{font-size:12px;color:#999;margin-bottom:28px;text-transform:uppercase;letter-spacing:.08em}
+.login-senha-box{margin-top:0}
+.login-senha-box input{width:100%;padding:12px;border:1px solid #c8d8f0;border-radius:8px;font-size:14px;font-family:var(--font);outline:none;margin-bottom:10px;text-align:center;letter-spacing:.05em}
+.login-senha-box input:focus{border-color:#1e4a8a}
+.modo-badge{position:fixed;top:10px;right:12px;z-index:60;font-size:11px;padding:4px 10px;border-radius:20px;font-weight:600}
+.modo-admin{background:#1e4a8a;color:#fff}
+.modo-visit{background:#f0f4fa;color:#1e4a8a;border:1px solid #c8d8f0}
 .spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--text);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .loading-txt{font-size:13px;color:var(--text2)}
@@ -242,6 +254,23 @@ textarea{resize:vertical;min-height:60px}
     Relatórios
   </button>
 </nav>
+
+<!-- TELA DE LOGIN -->
+<div class="login-overlay" id="login-overlay">
+  <div class="login-box">
+    <div class="login-logo">Lupa<span>1</span></div>
+    <div class="login-sub">Contas a Receber</div>
+    <div class="login-senha-box show" id="login-senha-box">
+      <input type="password" id="login-input-senha" placeholder="Digite sua senha" onkeydown="if(event.key==='Enter') confirmarSenha()" autofocus>
+      <button class="login-btn login-btn-admin" onclick="confirmarSenha()" style="width:100%">Entrar</button>
+      <div class="login-erro" id="login-erro">Senha incorreta. Tente novamente.</div>
+    </div>
+    <div style="font-size:11px;color:#bbb;margin-top:20px">Acesso restrito — Grupo Lupa1</div>
+  </div>
+</div>
+
+<!-- BADGE DE MODO -->
+<div class="modo-badge" id="modo-badge" style="display:none"></div>
 
 <!-- LOADING -->
 <div class="loading-overlay" id="loading">
@@ -2230,7 +2259,75 @@ window.gerarPDF = async function(){
     toast('Erro ao gerar PDF');
   }
 };
-carregarDados();
+// ─── AUTENTICAÇÃO ────────────────────────────────────────────────────────────
+const SENHA_ADMIN = 'vmlthe@2023';
+
+const USUARIOS = {
+  'vmlthe@2023':    { nome: 'Victor',          admin: true  },
+  'iraildolupa':    { nome: 'Iraildo',          admin: false },
+  'thiagolupa':     { nome: 'Thiago Trindade',  admin: false },
+  'itamirlupa':     { nome: 'Itamir Trindade',  admin: false },
+  'tonylupa':       { nome: 'Tony Trindade',    admin: false },
+};
+
+let modoAdmin = false;
+let usuarioAtual = null;
+
+window.confirmarSenha = function(){
+  const senha = document.getElementById('login-input-senha').value.trim();
+  const usuario = USUARIOS[senha];
+  if(usuario){
+    modoAdmin = usuario.admin;
+    usuarioAtual = usuario.nome;
+    document.getElementById('login-overlay').classList.add('hide');
+    const badge = document.getElementById('modo-badge');
+    badge.className = 'modo-badge ' + (modoAdmin ? 'modo-admin' : 'modo-visit');
+    badge.textContent = (modoAdmin ? '🔐 ' : '👁 ') + usuario.nome;
+    badge.style.display = 'block';
+    carregarDados();
+  } else {
+    const erro = document.getElementById('login-erro');
+    erro.classList.add('show');
+    document.getElementById('login-input-senha').value = '';
+    setTimeout(()=>erro.classList.remove('show'), 3000);
+  }
+};
+
+function requerAdmin(){
+  if(!modoAdmin){ toast('⚠️ Apenas administradores podem realizar esta ação'); return false; }
+  return true;
+}
+
+// Proteger ações de escrita
+const _salvarLancamento = window.salvarLancamento;
+window.salvarLancamento = async function(){ if(!requerAdmin()) return; await _salvarLancamento(); };
+
+const _confirmarBaixa = window.confirmarBaixa;
+window.confirmarBaixa = async function(){ if(!requerAdmin()) return; await _confirmarBaixa(); };
+
+const _estornar = window.estornar;
+window.estornar = async function(id){ if(!requerAdmin()) return; await _estornar(id); };
+
+const _excluirLanc = window.excluirLanc;
+window.excluirLanc = async function(id){ if(!requerAdmin()) return; await _excluirLanc(id); };
+
+const _salvarCliente = window.salvarCliente;
+window.salvarCliente = async function(){ if(!requerAdmin()) return; await _salvarCliente(); };
+
+const _excluirCliente = window.excluirCliente;
+window.excluirCliente = async function(id){ if(!requerAdmin()) return; await _excluirCliente(id); };
+
+const _salvarNF = window.salvarNF;
+window.salvarNF = async function(){ if(!requerAdmin()) return; await _salvarNF(); };
+
+const _excluirNF = window.excluirNF;
+window.excluirNF = async function(id){ if(!requerAdmin()) return; await _excluirNF(id); };
+
+const _gerarMesAtual = window.gerarMesAtual;
+window.gerarMesAtual = async function(){ if(!requerAdmin()) return; await _gerarMesAtual(); };
+
+const _marcarNFEmitida = window.marcarNFEmitida;
+window.marcarNFEmitida = async function(id){ if(!requerAdmin()) return; await _marcarNFEmitida(id); };
 </script>
 </body>
 </html>
