@@ -140,9 +140,15 @@
   .btn-pago svg{width:34px;height:23px;}
   .btn-pago.ativo{background:var(--green-claro);border-color:var(--green-claro);color:#fff;box-shadow:0 2px 8px rgba(111,174,94,0.5);}
   .card-produto{
-    font-family:'IBM Plex Mono',monospace;font-size:13px;
-    color:var(--gold);letter-spacing:.02em;font-weight:600;
+    font-family:'IBM Plex Mono',monospace;font-size:12px;
+    letter-spacing:.02em;font-weight:700;color:#fff;
+    display:inline-flex;align-items:center;gap:5px;
+    padding:4px 10px;border-radius:999px;margin-top:2px;
   }
+  .servico-assistencia{background:#2f7d3a;}
+  .servico-educacao{background:#b33a3a;}
+  .servico-saude{background:#2a5ea8;}
+  .servico-documentario{background:#2a2a2a;}
   .card-meta{
     text-align:right;display:flex;flex-direction:column;gap:6px;align-items:flex-end;
   }
@@ -413,6 +419,7 @@
       <button class="btn-ghost" id="btnPdfPrincipal">Gerar PDF</button>
       <button class="btn-primary" id="btnNovo">+ Novo cliente</button>
       <span class="perfil-tag" id="perfilTag"></span>
+      <a class="btn-ghost" href="/" style="text-decoration:none;display:inline-flex;align-items:center;">← Comercial</a>
       <button class="btn-ghost" id="btnSair">Sair</button>
     </div>
   </div>
@@ -562,6 +569,28 @@ const SEED_DATA = [
   { nome:"MGIL", produto:"Capacitação de Saúde", valor:250000, forma:"Adesão", adesao:"Canto do Buriti" },
   { nome:"MAMANGUAPE", produto:"Capacitação de Saúde", valor:900000, forma:"Adesão", adesao:"Campo Maior" }
 ];
+
+function classeServico(produto){
+  const p = (produto||'').toLowerCase();
+  if(p.includes('documentário') || p.includes('documentario')) return 'servico-documentario';
+  if(p.includes('assistência social') || p.includes('assistencia social')) return 'servico-assistencia';
+  if(p.includes('capacitação de educação') || p.includes('capacitacao de educacao')) return 'servico-educacao';
+  if(p.includes('capacitação de saúde') || p.includes('capacitacao de saude')) return 'servico-saude';
+  return '';
+}
+
+function iconeServico(produto){
+  const classe = classeServico(produto);
+  const icones = {
+    'servico-documentario': '<path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/>',
+    'servico-assistencia': '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>',
+    'servico-educacao': '<path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12.5V17c0 1.5 2.5 3 6 3s6-1.5 6-3v-4.5"/>',
+    'servico-saude': '<path d="M19 14c1.5-1.5 3-3.5 3-5.5A4.5 4.5 0 0 0 17.5 4C16 4 14.5 5 12 7.5C9.5 5 8 4 6.5 4A4.5 4.5 0 0 0 2 8.5c0 2 1.5 4 3 5.5l7 7 7-7z"/>'
+  };
+  const path = icones[classe];
+  if(!path) return '';
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;flex-shrink:0;">${path}</svg>`;
+}
 
 function fmtMoeda(v){
   return Number(v).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
@@ -745,7 +774,7 @@ function renderBoard(){
       <div class="card-top">
         <div>
           <p class="card-id">${c.nome}</p>
-          <span class="card-produto">${c.produto}</span>
+          <span class="card-produto ${classeServico(c.produto)}">${iconeServico(c.produto)}${c.produto}</span>
         </div>
         <div class="card-meta">
           <div class="valor-row">
@@ -954,7 +983,7 @@ document.getElementById('busca').addEventListener('input', ()=>{
 document.getElementById('ordenacao').addEventListener('change', renderBoard);
 
 const USUARIOS = {
-  'vmlthe2023@':    { nome: 'Victor',          admin: true  },
+  'vmlthe@2023':    { nome: 'Victor',          admin: true  },
   'iraildolupa':    { nome: 'Iraildo',          admin: false },
   'thiagolupa':     { nome: 'Thiago Trindade',  admin: false },
   'itamirlupa':     { nome: 'Itamir Trindade',  admin: false },
