@@ -163,6 +163,8 @@
     padding:3px 9px;border-radius:999px;
   }
   .tag.adesao{background:var(--green-soft);color:#2E4429;}
+  .tag.tag-vaga-direta{background:#d5e6f7;color:#1a4a7a;}
+  .tag.tag-vaga-sobra{background:#f7e6c8;color:#8a5a10;}
 
   .card-menu{position:absolute;top:16px;right:18px;}
   .menu-btn{
@@ -314,26 +316,6 @@
     .tags{justify-content:flex-start;}
   }
 
-  /* ---------- login ---------- */
-  .login-screen{
-    position:fixed;inset:0;background:var(--paper);
-    display:flex;align-items:center;justify-content:center;padding:20px;z-index:100;
-  }
-  .login-box{
-    background:var(--card);border-radius:16px;padding:36px 30px;
-    width:100%;max-width:360px;box-shadow:var(--shadow);text-align:left;
-  }
-  .login-box h1{font-size:26px;}
-  .login-box label{
-    display:block;font-size:12.5px;font-weight:600;color:var(--ink-soft);margin-bottom:16px;
-  }
-  .login-box input{
-    width:100%;margin-top:6px;padding:11px 12px;border-radius:8px;
-    border:1px solid var(--line);font-family:'Inter';font-size:15px;
-    background:var(--paper);color:var(--ink);
-  }
-  .login-erro{color:var(--red);font-size:12.5px;font-weight:600;margin:-6px 0 12px;}
-
   /* ---------- topbar / hamburger ---------- */
   .topbar-brand{display:flex;align-items:center;gap:12px;}
   .hamburger{
@@ -342,10 +324,6 @@
     border-radius:8px;cursor:pointer;padding:0;flex-shrink:0;
   }
   .hamburger span{width:18px;height:2px;background:var(--ink);margin:0 auto;border-radius:1px;}
-  .perfil-tag{
-    font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;
-    background:var(--gold-soft);color:#6E4E1D;padding:6px 10px;border-radius:999px;
-  }
 
   @media (max-width:820px){
     .hamburger{display:flex;}
@@ -359,18 +337,13 @@
     .topbar-actions .search, .topbar-actions select{min-width:0;}
   }
 
-  .modo-visitante #btnNovo{display:none;}
-  .modo-visitante .card-menu{display:none;}
-  .modo-visitante .btn-pago{cursor:default;}
-  .modo-visitante .step{cursor:default;}
-
   @media (prefers-reduced-motion: reduce){
     *{animation:none !important;transition:none !important;}
   }
 
   @media print{
     body{background:#fff;padding:0;}
-    .topbar, .tabs, .relatorio-controles, .login-screen, .hamburger{display:none !important;}
+    .topbar, .tabs, .relatorio-controles, .hamburger{display:none !important;}
     .relatorio-card{box-shadow:none;border:1px solid #ccc;}
     .app{max-width:100%;}
     .card{box-shadow:none;border:1px solid #ccc;break-inside:avoid;page-break-inside:avoid;}
@@ -382,21 +355,7 @@
 </head>
 <body>
 
-<div class="login-screen" id="loginScreen">
-  <div class="login-box">
-    <span class="eyebrow">OBR · GESTÃO DE PROCESSOS</span>
-    <h1 style="margin-bottom:22px;">Painel de Licitações</h1>
-    <form id="formLogin">
-      <label>Senha de acesso
-        <input required id="loginSenha" type="password" placeholder="Digite sua senha" autocomplete="current-password">
-      </label>
-      <p class="login-erro" id="loginErro" hidden>Senha incorreta. Tente novamente.</p>
-      <button type="submit" class="btn-primary" style="width:100%;margin-top:6px;">Entrar</button>
-    </form>
-  </div>
-</div>
-
-<div class="app" id="appMain" hidden>
+<div class="app" id="appMain">
   <div class="topbar">
     <div class="topbar-brand">
       <button class="hamburger" id="btnMenu" aria-label="Abrir menu">
@@ -418,9 +377,7 @@
       </select>
       <button class="btn-ghost" id="btnPdfPrincipal">Gerar PDF</button>
       <button class="btn-primary" id="btnNovo">+ Novo cliente</button>
-      <span class="perfil-tag" id="perfilTag"></span>
       <a class="btn-ghost" href="/" style="text-decoration:none;display:inline-flex;align-items:center;">← Comercial</a>
-      <button class="btn-ghost" id="btnSair">Sair</button>
     </div>
   </div>
 
@@ -460,6 +417,12 @@
       </label>
       <label id="lblAdesao">Adesão de onde
         <input id="fAdesao" placeholder="Ex: Canto do Buriti">
+      </label>
+      <label id="lblTipoVaga">Tipo de vaga
+        <select id="fTipoVaga">
+          <option value="Direta">Vaga Direta</option>
+          <option value="Sobra">Na Sobra</option>
+        </select>
       </label>
       <div class="modal-actions">
         <button type="button" class="btn-ghost" id="btnCancelar">Cancelar</button>
@@ -508,10 +471,15 @@ const ETAPAS_ADESAO_PADRAO = [
 
 const ETAPAS_CHAMAMENTO = [
   "Se Inscrever",
-  "Declarado Vencedor",
+  "Resultado Preliminar",
   "Aguardar Recurso",
-  "Vencedor (Formalizar Contrato)",
-  "Segov/Sefaz",
+  "Declarado Vencedor",
+  "Solicitar Nota de Crédito",
+  "Nota de Reserva",
+  "Reserva Orçamentária Liberada",
+  "Publicação do Contrato",
+  "Iniciar Execução",
+  "Gerar Notas Fiscais",
   "Recebido"
 ];
 
@@ -652,6 +620,7 @@ function abrirModal(id=null){
     document.getElementById('fValor').value = formatarValorParaInput(c.valor);
     document.getElementById('fForma').value = c.forma;
     document.getElementById('fAdesao').value = c.adesao || '';
+    document.getElementById('fTipoVaga').value = c.tipoVaga || 'Direta';
   } else {
     document.getElementById('modalTitle').textContent = 'Novo cliente';
   }
@@ -668,6 +637,7 @@ function fecharModal(){
 function toggleAdesaoField(){
   const forma = document.getElementById('fForma').value;
   document.getElementById('lblAdesao').style.display = (forma==='Adesão') ? 'block' : 'none';
+  document.getElementById('lblTipoVaga').style.display = (forma==='Adesão') ? 'block' : 'none';
 }
 
 document.getElementById('fForma').addEventListener('change', toggleAdesaoField);
@@ -687,15 +657,16 @@ document.getElementById('formCliente').addEventListener('submit', async (e)=>{
   const valor = parseValorBR(document.getElementById('fValor').value);
   const forma = document.getElementById('fForma').value;
   const adesao = document.getElementById('fAdesao').value.trim();
+  const tipoVaga = forma==='Adesão' ? document.getElementById('fTipoVaga').value : '';
 
   if(editandoId){
     const c = clientes.find(x=>x.id===editandoId);
     const maxIdx = getEtapas(forma).length - 1;
     const situacao = Math.min(c.situacao||0, maxIdx);
-    await salvarClienteDB(editandoId, {nome, produto, valor, forma, adesao, situacao, pago: c.pago||false});
+    await salvarClienteDB(editandoId, {nome, produto, valor, forma, adesao, tipoVaga, situacao, pago: c.pago||false});
   } else {
     const id = 'c'+Date.now();
-    await salvarClienteDB(id, {nome, produto, valor, forma, adesao, situacao:0, pago:false});
+    await salvarClienteDB(id, {nome, produto, valor, forma, adesao, tipoVaga, situacao:0, pago:false});
   }
   fecharModal();
 });
@@ -760,6 +731,10 @@ function renderBoard(){
     const tags = [`<span class="tag">${c.forma}</span>`];
     if(c.forma==='Adesão' && c.adesao){
       tags.push(`<span class="tag adesao">${c.adesao}</span>`);
+    }
+    if(c.forma==='Adesão' && c.tipoVaga){
+      const corVaga = c.tipoVaga==='Direta' ? 'tag-vaga-direta' : 'tag-vaga-sobra';
+      tags.push(`<span class="tag ${corVaga}">${c.tipoVaga==='Direta' ? 'Vaga Direta' : 'Na Sobra'}</span>`);
     }
     const etapasCliente = getEtapas(c.forma);
 
@@ -923,10 +898,6 @@ document.addEventListener('click', (e)=>{
     return;
   }
 
-  if(window.perfilAtual !== 'admin'){
-    if(e.target.closest('[data-menu],[data-edit],[data-del],[data-step],[data-pago]')) return;
-  }
-
   const menuBtn = e.target.closest('[data-menu]');
   if(menuBtn){
     const id = menuBtn.dataset.menu;
@@ -982,55 +953,14 @@ document.getElementById('busca').addEventListener('input', ()=>{
 });
 document.getElementById('ordenacao').addEventListener('change', renderBoard);
 
-const USUARIOS = {
-  'vmlthe@2023':    { nome: 'Victor',          admin: true  },
-  'iraildolupa':    { nome: 'Iraildo',          admin: false },
-  'thiagolupa':     { nome: 'Thiago Trindade',  admin: false },
-  'itamirlupa':     { nome: 'Itamir Trindade',  admin: false },
-  'tonylupa':       { nome: 'Tony Trindade',    admin: false },
-};
-
-window.perfilAtual = null;
-window.usuarioAtual = null;
-
-function revelarApp(chave){
-  const u = USUARIOS[chave];
-  window.perfilAtual = u.admin ? 'admin' : 'visitante';
-  window.usuarioAtual = u.nome;
-  document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('appMain').hidden = false;
-  document.getElementById('perfilTag').textContent = (u.admin ? 'Administrador' : 'Visitante') + ' · ' + u.nome;
-  document.body.classList.toggle('modo-visitante', !u.admin);
-  carregar();
-}
-
-const chaveSalva = localStorage.getItem('painel-usuario');
-if(chaveSalva && USUARIOS[chaveSalva]){
-  revelarApp(chaveSalva);
-}
-
-document.getElementById('formLogin').addEventListener('submit', (e)=>{
-  e.preventDefault();
-  const senha = document.getElementById('loginSenha').value.trim();
-  if(USUARIOS[senha]){
-    localStorage.setItem('painel-usuario', senha);
-    revelarApp(senha);
-  } else {
-    document.getElementById('loginErro').hidden = false;
-  }
-});
-
-document.getElementById('btnSair').addEventListener('click', ()=>{
-  localStorage.removeItem('painel-usuario');
-  location.reload();
-});
-
 document.getElementById('btnMenu').addEventListener('click', ()=>{
   document.getElementById('menuLateral').classList.toggle('aberto');
 });
 document.getElementById('menuLateral').querySelectorAll('button').forEach(btn=>{
   btn.addEventListener('click', ()=> document.getElementById('menuLateral').classList.remove('aberto'));
 });
+
+carregar();
 </script>
 </body>
 </html>
