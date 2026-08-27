@@ -749,6 +749,7 @@ textarea{resize:vertical;min-height:60px}
       <div class="mapa-leg-item"><div class="mapa-leg-cor" style="background:#1e4a8a"></div> Com contrato ativo</div>
       <div class="mapa-leg-item"><div class="mapa-leg-cor" style="background:#4caf50"></div> Sem contrato (oportunidade)</div>
       <div class="mapa-leg-item"><div class="mapa-leg-cor" style="background:#f0a500"></div> Câmara Municipal com contrato</div>
+      <div class="mapa-leg-item"><div class="mapa-leg-cor" style="background:#8e44ad"></div> Prefeitura + Câmara</div>
     </div>
   </div>
 </div>
@@ -1778,7 +1779,7 @@ async function renderMapa(){
     return coords.map(ring=>coordsToPath(ring)).join(' ');
   };
 
-  let comContrato=0, semContrato=0, camMun=0;
+  let comContrato=0, semContrato=0, camMun=0, ambos=0;
   let pathsHtml = '';
 
   PI_GEOJSON.features.forEach(f=>{
@@ -1792,7 +1793,11 @@ async function renderMapa(){
     let temContrato = false;
     let clienteInfo = null;
 
-    if(clienteMun){
+    if(clienteMun && clienteCam){
+      cor = '#8e44ad'; // roxo = município + câmara com contrato
+      temContrato = true;
+      ambos++;
+    } else if(clienteMun){
       cor = '#1e4a8a'; // azul = município com contrato
       temContrato = true;
       clienteInfo = clienteMun;
@@ -1814,7 +1819,9 @@ async function renderMapa(){
       pathData = geom.coordinates.map(p=>coordsToPath(p)).join(' ');
     }
 
-    const infoHTML = temContrato
+    const infoHTML = (clienteMun && clienteCam)
+      ? `<b>${nome}</b><br>${clienteMun.nome}<br>${fmtBRL(clienteMun.valor)}/mês<br>${clienteCam.nome}<br>${fmtBRL(clienteCam.valor)}/mês`
+      : temContrato
       ? `<b>${nome}</b><br>${clienteInfo.nome}<br>${fmtBRL(clienteInfo.valor)}/mês`
       : `<b>${nome}</b><br>Sem contrato`;
 
@@ -1844,8 +1851,9 @@ async function renderMapa(){
   if(statsEl) statsEl.innerHTML = `
     <div class="metric"><div class="metric-label">Com contrato</div><div class="metric-val" style="color:#1e4a8a">${comContrato}</div><div class="metric-sub">municípios</div></div>
     <div class="metric"><div class="metric-label">Câmara com contrato</div><div class="metric-val" style="color:#f0a500">${camMun}</div><div class="metric-sub">câmaras</div></div>
+    <div class="metric"><div class="metric-label">Prefeitura + Câmara</div><div class="metric-val" style="color:#8e44ad">${ambos}</div><div class="metric-sub">municípios</div></div>
     <div class="metric"><div class="metric-label">Sem contrato</div><div class="metric-val" style="color:#4caf50">${semContrato}</div><div class="metric-sub">oportunidades</div></div>
-    <div class="metric"><div class="metric-label">Total municípios PI</div><div class="metric-val">${comContrato+camMun+semContrato}</div></div>
+    <div class="metric"><div class="metric-label">Total municípios PI</div><div class="metric-val">${comContrato+camMun+ambos+semContrato}</div></div>
   `;
 }
 window.renderMapa = renderMapa;
