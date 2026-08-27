@@ -1739,9 +1739,12 @@ async function renderMapa(){
     const chave = normalizarNome(c.nome);
     if(c.categoria==='Município') clientesMun[chave] = c;
     if(c.categoria==='Câmara Municipal'){
-      // Extrair nome do município da câmara
-      const nomeMun = c.nome.replace(/cam(ara)? municipal( de)?/i,'').trim();
-      clientesCam[normalizarNome(nomeMun)] = c;
+      // Extrair nome do município: normaliza primeiro (remove acentos),
+      // depois remove termos como "camara municipal de", "camara de vereadores de", etc.
+      let base = normalizarNome(c.nome);
+      base = base.replace(/\b(camara( municipal)?( de)?( vereadores)?( de| do| da)?)\b/g,' ');
+      base = base.replace(/\s+/g,' ').trim();
+      clientesCam[base] = c;
     }
   });
 
