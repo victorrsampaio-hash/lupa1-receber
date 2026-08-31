@@ -247,6 +247,7 @@ textarea{resize:vertical;min-height:60px}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
@@ -730,26 +731,26 @@ textarea{resize:vertical;min-height:60px}
   </div>
 </div>
 
-<!-- MAPA -->
+<!-- MAPA 3D -->
 <div id="tab-mapa" class="section">
   <div class="page-header">
-    <div><div class="page-title">Mapa do Piauí</div><div class="page-sub">Municípios com contratos ativos</div></div>
+    <div><div class="page-title">Mapa 3D do Piauí</div><div class="page-sub">Painel de acompanhamento — arraste para girar, role para zoom</div></div>
     <button class="btn" onclick="imprimirAba()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
       Imprimir
     </button>
   </div>
   <div class="mapa-stats" id="mapa-stats"></div>
-  <div class="card" style="padding:0;overflow:hidden">
-    <div class="mapa-container">
-      <div class="mapa-tooltip" id="mapa-tooltip"></div>
-      <svg id="mapa-svg" class="mapa-svg" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg"></svg>
+  <div class="card" style="padding:0;overflow:hidden;background:#0b1220">
+    <div class="mapa3d-container" id="mapa3d-container" style="position:relative;width:100%;height:640px">
+      <div class="mapa-tooltip" id="mapa-tooltip" style="z-index:20"></div>
+      <div id="mapa3d-loading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9fb3d1;font-size:13px">Carregando mapa 3D…</div>
     </div>
-    <div class="mapa-legenda">
-      <div class="mapa-leg-item"><div class="mapa-leg-cor" style="background:#1e4a8a"></div> Com contrato ativo</div>
-      <div class="mapa-leg-item"><div class="mapa-leg-cor" style="background:#4caf50"></div> Sem contrato (oportunidade)</div>
-      <div class="mapa-leg-item"><div class="mapa-leg-cor" style="background:#f0a500"></div> Câmara Municipal com contrato</div>
-      <div class="mapa-leg-item"><div class="mapa-leg-cor" style="background:#8e44ad"></div> Prefeitura + Câmara</div>
+    <div class="mapa-legenda" style="background:#0f1a2e;border-top:1px solid #1e2d47">
+      <div class="mapa-leg-item" style="color:#c8d6ea"><div class="mapa-leg-cor" style="background:#1e4a8a"></div> Com contrato ativo</div>
+      <div class="mapa-leg-item" style="color:#c8d6ea"><div class="mapa-leg-cor" style="background:#4caf50"></div> Sem contrato (oportunidade)</div>
+      <div class="mapa-leg-item" style="color:#c8d6ea"><div class="mapa-leg-cor" style="background:#f0a500"></div> Câmara Municipal com contrato</div>
+      <div class="mapa-leg-item" style="color:#c8d6ea"><div class="mapa-leg-cor" style="background:#8e44ad"></div> Prefeitura + Câmara</div>
     </div>
   </div>
 </div>
@@ -1568,7 +1569,7 @@ window.previewRelatorio = function(){
     <div style="display:flex;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">
       <span style="color:var(--text3);width:28px;flex-shrink:0">${i+1}.</span>
       <span style="flex:1;font-weight:500">${c.nome}</span>
-      ${mostrarCat?`<span class="chip" style="margin-right:8px">${c.categoria||'—'}</span>`:''}
+      ${mostrarCat&&c.categoria?chipCategoria(c.categoria):''}
       ${mostrarVal?`<span style="font-variant-numeric:tabular-nums;color:var(--text2)">${fmtBRL(c.valor)}</span>`:''}
     </div>`;
 
@@ -1712,11 +1713,28 @@ window.deslogar = function(){
 // ─── MAPA ────────────────────────────────────────────────────────────────────
 let PI_GEOJSON = null;
 
+function chipCategoria(cat){
+  if(!cat) return '—';
+  const cores = {
+    'Município':          {bg:'#e5edfa', border:'#b9cdf0', text:'#1e4a8a'},
+    'Câmara Municipal':   {bg:'#fdf2df', border:'#f0d9a6', text:'#9a6a00'},
+    'Governo Estadual':   {bg:'#e6f5ec', border:'#b9e3c9', text:'#1f7a45'},
+    'Político':           {bg:'#f3e8fb', border:'#ddbdf2', text:'#7c2d9e'},
+    'Partido':            {bg:'#fde8ec', border:'#f2bdca', text:'#a3234f'},
+    'Privado':            {bg:'#e9edf1', border:'#c7d0d9', text:'#3c4a5a'},
+    'Evento':             {bg:'#fdece0', border:'#f2c19f', text:'#b0500f'}
+  };
+  const c = cores[cat] || {bg:'var(--surface2)', border:'var(--border)', text:'var(--text2)'};
+  return `<span class="chip" style="background:${c.bg};border-color:${c.border};color:${c.text};font-weight:600">${cat}</span>`;
+}
+
 function normalizarNome(nome){
   return nome.toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9\s]/g, '').trim();
 }
+
+let _mapa3d = null; // guarda estado (scene, camera, renderer, controles) entre re-renders
 
 async function renderMapa(){
   if(!PI_GEOJSON){
@@ -1728,10 +1746,11 @@ async function renderMapa(){
       return;
     }
   }
-  const svg = document.getElementById('mapa-svg');
+  const container = document.getElementById('mapa3d-container');
   const tooltip = document.getElementById('mapa-tooltip');
   const statsEl = document.getElementById('mapa-stats');
-  if(!svg) return;
+  const loadingEl = document.getElementById('mapa3d-loading');
+  if(!container || typeof THREE==='undefined') return;
 
   // Mapear clientes municipais
   const clientesMun = {};
@@ -1740,8 +1759,6 @@ async function renderMapa(){
     const chave = normalizarNome(c.nome);
     if(c.categoria==='Município') clientesMun[chave] = c;
     if(c.categoria==='Câmara Municipal'){
-      // Extrair nome do município: normaliza primeiro (remove acentos),
-      // depois remove termos como "camara municipal de", "camara de vereadores de", etc.
       let base = normalizarNome(c.nome);
       base = base.replace(/\b(camara( municipal)?( de)?( vereadores)?( de| do| da)?)\b/g,' ');
       base = base.replace(/\s+/g,' ').trim();
@@ -1749,7 +1766,7 @@ async function renderMapa(){
     }
   });
 
-  // Calcular bounding box
+  // Bounding box geográfica
   let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
   PI_GEOJSON.features.forEach(f=>{
     const flat = (coords) => {
@@ -1761,91 +1778,198 @@ async function renderMapa(){
       if(y<minY)minY=y; if(y>maxY)maxY=y;
     });
   });
+  const W=100, PAD=2;
+  const scale = (W-PAD*2)/Math.max(maxX-minX,maxY-minY);
+  const cx=(minX+maxX)/2, cy=(minY+maxY)/2;
+  const toXZ = ([x,y]) => [ (x-cx)*scale, (y-cy)*scale ]; // X e Z do plano do mapa
 
-  const W=1000, H=1000, PAD=20;
-  const scaleX = (W-PAD*2)/(maxX-minX);
-  const scaleY = (H-PAD*2)/(maxY-minY);
-  const scale = Math.min(scaleX,scaleY);
-
-  const toSVG = ([x,y]) => [
-    PAD + (x-minX)*scale,
-    H - PAD - (y-minY)*scale
-  ];
-
-  const coordsToPath = (coords) => {
-    if(typeof coords[0][0]==='number'){
-      return coords.map((c,i)=>`${i===0?'M':'L'}${toSVG(c).join(',')}`).join(' ')+'Z';
-    }
-    return coords.map(ring=>coordsToPath(ring)).join(' ');
+  // Alturas fixas por categoria e cores (mesma paleta do sistema)
+  const ESTILO = {
+    ambos:  {cor:0x8e44ad, h:3.2},
+    mun:    {cor:0x1e4a8a, h:2.4},
+    cam:    {cor:0xf0a500, h:1.8},
+    livre:  {cor:0x4caf50, h:0.35}
   };
 
   let comContrato=0, semContrato=0, camMun=0, ambos=0;
-  let pathsHtml = '';
+
+  // ── Monta / reaproveita cena Three.js ──
+  if(!_mapa3d){
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0b1220);
+    scene.fog = new THREE.Fog(0x0b1220, 80, 220);
+
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth/container.clientHeight, 0.1, 1000);
+
+    const renderer = new THREE.WebGLRenderer({antialias:true});
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+    container.appendChild(renderer.domElement);
+
+    // luzes
+    scene.add(new THREE.AmbientLight(0x8899bb, 0.7));
+    const dir = new THREE.DirectionalLight(0xffffff, 1.1);
+    dir.position.set(40,80,40);
+    scene.add(dir);
+    const rim = new THREE.DirectionalLight(0x4a6fb5, 0.5);
+    rim.position.set(-50,30,-30);
+    scene.add(rim);
+
+    // grupo raiz do mapa (rotacionado para deitar o plano XY no chão XZ)
+    const mapGroup = new THREE.Group();
+    mapGroup.rotation.x = -Math.PI/2;
+    scene.add(mapGroup);
+
+    // plano de "chão" sutil
+    const groundGeo = new THREE.PlaneGeometry(200,200);
+    const groundMat = new THREE.MeshStandardMaterial({color:0x0f1a2e, metalness:0.1, roughness:0.95});
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI/2;
+    ground.position.y = -0.05;
+    scene.add(ground);
+
+    // órbita manual (sem depender de OrbitControls, que não está disponível no r128 via este CDN)
+    let rotY = 0.5, rotX = 0.85, dist = 95;
+    let dragging = false, lastX=0, lastY=0;
+
+    const updateCamera = () => {
+      const x = dist*Math.sin(rotX)*Math.sin(rotY);
+      const y = dist*Math.cos(rotX);
+      const z = dist*Math.sin(rotX)*Math.cos(rotY);
+      camera.position.set(x,y,z);
+      camera.lookAt(0,0,0);
+    };
+    updateCamera();
+
+    renderer.domElement.style.cursor = 'grab';
+    renderer.domElement.addEventListener('mousedown',(e)=>{ dragging=true; lastX=e.clientX; lastY=e.clientY; renderer.domElement.style.cursor='grabbing'; });
+    window.addEventListener('mouseup',()=>{ dragging=false; renderer.domElement.style.cursor='grab'; });
+    window.addEventListener('mousemove',(e)=>{
+      if(!dragging) return;
+      const dx = e.clientX-lastX, dy = e.clientY-lastY;
+      lastX=e.clientX; lastY=e.clientY;
+      rotY += dx*0.006;
+      rotX = Math.min(Math.max(rotX - dy*0.006, 0.35), 1.4);
+      updateCamera();
+    });
+    renderer.domElement.addEventListener('wheel',(e)=>{
+      e.preventDefault();
+      dist = Math.min(Math.max(dist + e.deltaY*0.05, 40), 160);
+      updateCamera();
+    },{passive:false});
+
+    // raycaster para tooltip/hover
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let hovered = null;
+
+    renderer.domElement.addEventListener('mousemove',(e)=>{
+      const rect = container.getBoundingClientRect();
+      mouse.x = ((e.clientX-rect.left)/rect.width)*2-1;
+      mouse.y = -((e.clientY-rect.top)/rect.height)*2+1;
+      raycaster.setFromCamera(mouse, camera);
+      const hits = raycaster.intersectObjects(mapGroup.children);
+      if(hits.length){
+        const obj = hits[0].object;
+        if(hovered!==obj){
+          if(hovered) hovered.material.emissive?.setHex(0x000000);
+          hovered = obj;
+          if(obj.material.emissive) obj.material.emissive.setHex(0x333333);
+        }
+        tooltip.innerHTML = obj.userData.info || '';
+        tooltip.style.display = 'block';
+        tooltip.style.left = (e.clientX-rect.left+12)+'px';
+        tooltip.style.top = (e.clientY-rect.top-10)+'px';
+      } else {
+        if(hovered && hovered.material.emissive) hovered.material.emissive.setHex(0x000000);
+        hovered = null;
+        tooltip.style.display = 'none';
+      }
+    });
+    renderer.domElement.addEventListener('mouseleave',()=>{ tooltip.style.display='none'; });
+
+    const animate = () => {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+    };
+    animate();
+
+    window.addEventListener('resize', ()=>{
+      if(!container.isConnected) return;
+      camera.aspect = container.clientWidth/container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+
+    _mapa3d = {scene, camera, renderer, mapGroup, updateCamera};
+  }
+
+  const {scene, mapGroup} = _mapa3d;
+
+  // Limpa extrusões antigas (mantém luzes/chão que estão fora do mapGroup)
+  while(mapGroup.children.length) mapGroup.remove(mapGroup.children[0]);
+
+  const shapeFromRing = (ring) => {
+    const shape = new THREE.Shape();
+    ring.forEach(([x,y],i)=>{
+      const [px,pz] = toXZ([x,y]);
+      if(i===0) shape.moveTo(px,pz); else shape.lineTo(px,pz);
+    });
+    return shape;
+  };
 
   PI_GEOJSON.features.forEach(f=>{
     const nome = f.properties.name;
-    const nomeSeguro = nome.replace(/'/g, "\\'");
     const nomeN = normalizarNome(nome);
     const clienteMun = clientesMun[nomeN];
     const clienteCam = clientesCam[nomeN];
 
-    let cor = '#4caf50'; // verde = sem contrato
+    let estilo = ESTILO.livre;
     let temContrato = false;
-    let clienteInfo = null;
 
-    if(clienteMun && clienteCam){
-      cor = '#8e44ad'; // roxo = município + câmara com contrato
-      temContrato = true;
-      ambos++;
-    } else if(clienteMun){
-      cor = '#1e4a8a'; // azul = município com contrato
-      temContrato = true;
-      clienteInfo = clienteMun;
-      comContrato++;
-    } else if(clienteCam){
-      cor = '#f0a500'; // laranja = câmara com contrato
-      temContrato = true;
-      clienteInfo = clienteCam;
-      camMun++;
-    } else {
-      semContrato++;
-    }
-
-    const geom = f.geometry;
-    let pathData = '';
-    if(geom.type==='Polygon'){
-      pathData = coordsToPath(geom.coordinates);
-    } else if(geom.type==='MultiPolygon'){
-      pathData = geom.coordinates.map(p=>coordsToPath(p)).join(' ');
-    }
+    if(clienteMun && clienteCam){ estilo = ESTILO.ambos; temContrato=true; ambos++; }
+    else if(clienteMun){ estilo = ESTILO.mun; temContrato=true; comContrato++; }
+    else if(clienteCam){ estilo = ESTILO.cam; temContrato=true; camMun++; }
+    else { semContrato++; }
 
     const infoHTML = (clienteMun && clienteCam)
       ? `<b>${nome}</b><br>${clienteMun.nome}<br>${fmtBRL(clienteMun.valor)}/mês<br>${clienteCam.nome}<br>${fmtBRL(clienteCam.valor)}/mês`
       : temContrato
-      ? `<b>${nome}</b><br>${clienteInfo.nome}<br>${fmtBRL(clienteInfo.valor)}/mês`
+      ? `<b>${nome}</b><br>${(clienteMun||clienteCam).nome}<br>${fmtBRL((clienteMun||clienteCam).valor)}/mês`
       : `<b>${nome}</b><br>Sem contrato`;
 
-    pathsHtml += `<path class="mapa-municipio" d="${pathData}" fill="${cor}" data-nome="${nomeSeguro}" data-info="${encodeURIComponent(infoHTML)}"/>`;
+    const geom = f.geometry;
+    const polygons = geom.type==='Polygon' ? [geom.coordinates] : geom.coordinates;
+
+    polygons.forEach(rings=>{
+      const shape = shapeFromRing(rings[0]);
+      for(let i=1;i<rings.length;i++){ shape.holes.push(shapeFromRing(rings[i])); }
+
+      const extrudeSettings = { depth: estilo.h, bevelEnabled:true, bevelThickness:0.06, bevelSize:0.06, bevelSegments:1 };
+      const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+      const material = new THREE.MeshStandardMaterial({color:estilo.cor, metalness:0.25, roughness:0.55});
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.userData.info = infoHTML;
+
+      // contorno sutil (edges)
+      const edges = new THREE.EdgesGeometry(geometry, 20);
+      const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({color:0x0b1220, transparent:true, opacity:0.35}));
+      mesh.add(line);
+
+      mapGroup.add(mesh);
+    });
   });
 
-  svg.innerHTML = pathsHtml;
+  if(loadingEl) loadingEl.style.display = 'none';
 
-  // Eventos de tooltip
-  svg.querySelectorAll('.mapa-municipio').forEach(el=>{
-    el.addEventListener('mousemove',(e)=>{
-      const rect = svg.getBoundingClientRect();
-      const info = decodeURIComponent(el.dataset.info);
-      tooltip.innerHTML = info;
-      tooltip.style.display='block';
-      tooltip.style.left = (e.clientX - rect.left + 10)+'px';
-      tooltip.style.top = (e.clientY - rect.top - 10)+'px';
-    });
-    el.addEventListener('mouseleave',()=>{ tooltip.style.display='none'; });
-    el.addEventListener('click',()=>{
-      const info = decodeURIComponent(el.dataset.info);
-      toast(el.dataset.nome);
-    });
-  });
+  // Reforço: garante dimensões corretas caso o container tenha sido medido com 0 (troca de aba)
+  setTimeout(()=>{
+    if(_mapa3d && container.clientWidth>0){
+      _mapa3d.camera.aspect = container.clientWidth/container.clientHeight;
+      _mapa3d.camera.updateProjectionMatrix();
+      _mapa3d.renderer.setSize(container.clientWidth, container.clientHeight);
+    }
+  }, 60);
 
   // Stats
   if(statsEl) statsEl.innerHTML = `
@@ -1964,7 +2088,7 @@ function renderClientes(){
       const ab = lancamentos.filter(l=>l.clienteId===c.id&&!l.pago).reduce((s,l)=>s+Number(l.valor||0),0);
       return `<tr>
         <td class="td-name">${c.nome}</td>
-        <td>${c.categoria?`<span class="chip">${c.categoria}</span>`:'—'}</td>
+        <td>${chipCategoria(c.categoria)}</td>
         <td>${c.diaPagar?'Dia '+c.diaPagar:'—'}</td>
         <td>${c.diaNF?'Dia '+c.diaNF:'—'}</td>
         <td>${c.formaPagamento?`<span class="chip">${c.formaPagamento}</span>`:'—'}</td>
