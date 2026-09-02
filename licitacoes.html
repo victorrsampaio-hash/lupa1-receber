@@ -283,6 +283,28 @@
     background:var(--gold-soft);
   }
   .tabela-relatorio tfoot td.col-valor{font-family:'IBM Plex Mono',monospace;}
+
+  .tabela-anotacoes{width:100%;border-collapse:collapse;}
+  .tabela-anotacoes th{
+    text-align:left;font-family:'IBM Plex Mono',monospace;font-size:10.5px;
+    letter-spacing:.06em;color:var(--ink-soft);text-transform:uppercase;
+    padding:8px 16px;border-bottom:1px solid var(--line);background:var(--paper-deep);
+  }
+  .tabela-anotacoes td{
+    padding:6px 16px;border-bottom:1px solid var(--line);font-size:13px;
+    vertical-align:middle;
+  }
+  .tabela-anotacoes td.col-nome{font-weight:600;white-space:nowrap;}
+  .tabela-anotacoes tr:last-child td{border-bottom:none;}
+  .tabela-anotacoes tr:hover td{background:var(--paper);}
+  .tabela-anotacoes .card-produto{font-size:11px;padding:3px 8px;}
+  .anotacao-input{
+    width:100%;border:none;background:transparent;font-family:'Inter';
+    font-size:13px;color:var(--ink);padding:5px 6px;border-radius:6px;
+    box-sizing:border-box;
+  }
+  .anotacao-input:focus{outline:1px dashed var(--gold);background:var(--paper);}
+  .anotacao-input::placeholder{color:var(--line);}
   .relatorio-empty{padding:60px 20px;text-align:center;color:var(--ink-soft);font-family:'Fraunces',serif;font-size:18px;}
   .empty{
     text-align:center;padding:70px 20px;color:var(--ink-soft);
@@ -399,6 +421,7 @@
   <div class="tabs" id="tabs"></div>
   <div class="board" id="board"></div>
   <div class="relatorio" id="relatorio" hidden></div>
+  <div class="anotacoes" id="anotacoes" hidden></div>
   <div class="empty" id="empty" hidden>
     <p>Nenhum processo cadastrado ainda.</p>
     <p style="font-size:13px;color:var(--ink-soft);">Use o botão "+ Novo cliente" no canto superior direito para começar.</p>
@@ -703,6 +726,7 @@ function renderTabs(){
     <button class="tab-btn ${abaAtual==='ativos'?'active':''}" data-tab="ativos">Em andamento <span class="n">${nAtivos}</span></button>
     <button class="tab-btn ${abaAtual==='recebidos'?'active':''}" data-tab="recebidos">Recebidos <span class="n">${nRecebidos}</span></button>
     <button class="tab-btn ${abaAtual==='relatorio'?'active':''}" data-tab="relatorio">Relatório <span class="n">${clientes.length}</span></button>
+    <button class="tab-btn ${abaAtual==='anotacoes'?'active':''}" data-tab="anotacoes">Anotações <span class="n">${clientes.filter(c=>c.nota).length}</span></button>
   `;
 }
 
@@ -891,19 +915,56 @@ function renderRelatorio(){
   });
 }
 
+function renderAnotacoes(){
+  const el = document.getElementById('anotacoes');
+  const lista = clientes.slice().sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+
+  if(lista.length===0){
+    el.innerHTML = `<div class="relatorio-empty">Nenhum cliente cadastrado ainda.</div>`;
+    return;
+  }
+
+  el.innerHTML = `
+    <div class="relatorio-card">
+      <table class="tabela-anotacoes">
+        <thead>
+          <tr><th>Cliente</th><th>Serviço</th><th>Anotação</th></tr>
+        </thead>
+        <tbody>
+          ${lista.map(c=>`
+            <tr>
+              <td class="col-nome">${c.nome}</td>
+              <td><span class="card-produto ${classeServico(c.produto)}">${iconeServico(c.produto)}${c.produto}</span></td>
+              <td>
+                <input type="text" class="anotacao-input" data-nota="${c.id}" placeholder="Sem anotação" value="${(c.nota||'').replace(/"/g,'&quot;')}">
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
 function render(){
   renderTabs();
   const board = document.getElementById('board');
   const relatorio = document.getElementById('relatorio');
+  const anotacoes = document.getElementById('anotacoes');
   const ordenacao = document.getElementById('ordenacao');
+  board.hidden = true;
+  relatorio.hidden = true;
+  anotacoes.hidden = true;
+  ordenacao.style.display = 'none';
+
   if(abaAtual==='relatorio'){
-    board.hidden = true;
     relatorio.hidden = false;
-    ordenacao.style.display = 'none';
     renderRelatorio();
+  } else if(abaAtual==='anotacoes'){
+    anotacoes.hidden = false;
+    renderAnotacoes();
   } else {
     board.hidden = false;
-    relatorio.hidden = true;
     ordenacao.style.display = '';
     renderBoard();
   }
@@ -923,83 +984,4 @@ document.addEventListener('click', (e)=>{
     document.querySelectorAll('.menu-pop').forEach(m=>{
       if(m.id !== 'menu-'+id) m.classList.remove('open');
     });
-    document.getElementById('menu-'+id).classList.toggle('open');
-    return;
-  }
-  const editBtn = e.target.closest('[data-edit]');
-  if(editBtn){ abrirModal(editBtn.dataset.edit); return; }
-
-  const delBtn = e.target.closest('[data-del]');
-  if(delBtn){
-    const menu = delBtn.closest('.menu-pop');
-    menu.innerHTML = `
-      <div class="confirm-row">
-        Excluir processo?
-        <button class="yes">Sim</button>
-        <button class="no">Não</button>
-      </div>`;
-    menu.querySelector('.yes').onclick = ()=>excluir(delBtn.dataset.del);
-    menu.querySelector('.no').onclick = ()=>menu.classList.remove('open');
-    return;
-  }
-
-  const step = e.target.closest('[data-step]');
-  if(step){
-    const [id, idx] = step.dataset.step.split('|');
-    mudarEtapa(id, Number(idx));
-    return;
-  }
-
-  const pagoBtn = e.target.closest('[data-pago]');
-  if(pagoBtn){
-    const c = clientes.find(x=>x.id===pagoBtn.dataset.pago);
-    if(!c.pago){
-      const ok = confirm(`Marcar "${c.nome}" (${c.produto}) como recebido?\n\nEle vai sair da aba "Em andamento" e passar para "Recebidos".`);
-      if(!ok) return;
-    }
-    c.pago = !c.pago;
-    salvarClienteDB(c.id, {...c});
-    return;
-  }
-
-  const notaLimpar = e.target.closest('[data-nota-limpar]');
-  if(notaLimpar){
-    const c = clientes.find(x=>x.id===notaLimpar.dataset.notaLimpar);
-    if(!c) return;
-    c.nota = '';
-    salvarClienteDB(c.id, {...c});
-    return;
-  }
-
-  if(!e.target.closest('.card-menu')){
-    document.querySelectorAll('.menu-pop').forEach(m=>m.classList.remove('open'));
-  }
-});
-
-document.addEventListener('focusout', (e)=>{
-  const notaInput = e.target.closest('[data-nota]');
-  if(!notaInput) return;
-  const c = clientes.find(x=>x.id===notaInput.dataset.nota);
-  if(!c) return;
-  const valor = notaInput.value.trim();
-  if((c.nota||'') === valor) return;
-  c.nota = valor;
-  salvarClienteDB(c.id, {...c});
-});
-
-document.getElementById('busca').addEventListener('input', ()=>{
-  if(abaAtual==='relatorio') renderRelatorio(); else renderBoard();
-});
-document.getElementById('ordenacao').addEventListener('change', renderBoard);
-
-document.getElementById('btnMenu').addEventListener('click', ()=>{
-  document.getElementById('menuLateral').classList.toggle('aberto');
-});
-document.getElementById('menuLateral').querySelectorAll('button').forEach(btn=>{
-  btn.addEventListener('click', ()=> document.getElementById('menuLateral').classList.remove('aberto'));
-});
-
-carregar();
-</script>
-</body>
-</html>
+    document.getElementById('menu-'+id).classList.toggle('op
