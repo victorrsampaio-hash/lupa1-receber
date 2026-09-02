@@ -984,4 +984,83 @@ document.addEventListener('click', (e)=>{
     document.querySelectorAll('.menu-pop').forEach(m=>{
       if(m.id !== 'menu-'+id) m.classList.remove('open');
     });
-    document.getElementById('menu-'+id).classList.toggle('op
+    document.getElementById('menu-'+id).classList.toggle('open');
+    return;
+  }
+  const editBtn = e.target.closest('[data-edit]');
+  if(editBtn){ abrirModal(editBtn.dataset.edit); return; }
+
+  const delBtn = e.target.closest('[data-del]');
+  if(delBtn){
+    const menu = delBtn.closest('.menu-pop');
+    menu.innerHTML = `
+      <div class="confirm-row">
+        Excluir processo?
+        <button class="yes">Sim</button>
+        <button class="no">Não</button>
+      </div>`;
+    menu.querySelector('.yes').onclick = ()=>excluir(delBtn.dataset.del);
+    menu.querySelector('.no').onclick = ()=>menu.classList.remove('open');
+    return;
+  }
+
+  const step = e.target.closest('[data-step]');
+  if(step){
+    const [id, idx] = step.dataset.step.split('|');
+    mudarEtapa(id, Number(idx));
+    return;
+  }
+
+  const pagoBtn = e.target.closest('[data-pago]');
+  if(pagoBtn){
+    const c = clientes.find(x=>x.id===pagoBtn.dataset.pago);
+    if(!c.pago){
+      const ok = confirm(`Marcar "${c.nome}" (${c.produto}) como recebido?\n\nEle vai sair da aba "Em andamento" e passar para "Recebidos".`);
+      if(!ok) return;
+    }
+    c.pago = !c.pago;
+    salvarClienteDB(c.id, {...c});
+    return;
+  }
+
+  const notaLimpar = e.target.closest('[data-nota-limpar]');
+  if(notaLimpar){
+    const c = clientes.find(x=>x.id===notaLimpar.dataset.notaLimpar);
+    if(!c) return;
+    c.nota = '';
+    salvarClienteDB(c.id, {...c});
+    return;
+  }
+
+  if(!e.target.closest('.card-menu')){
+    document.querySelectorAll('.menu-pop').forEach(m=>m.classList.remove('open'));
+  }
+});
+
+document.addEventListener('focusout', (e)=>{
+  const notaInput = e.target.closest('[data-nota]');
+  if(!notaInput) return;
+  const c = clientes.find(x=>x.id===notaInput.dataset.nota);
+  if(!c) return;
+  const valor = notaInput.value.trim();
+  if((c.nota||'') === valor) return;
+  c.nota = valor;
+  salvarClienteDB(c.id, {...c});
+});
+
+document.getElementById('busca').addEventListener('input', ()=>{
+  if(abaAtual==='relatorio') renderRelatorio(); else renderBoard();
+});
+document.getElementById('ordenacao').addEventListener('change', renderBoard);
+
+document.getElementById('btnMenu').addEventListener('click', ()=>{
+  document.getElementById('menuLateral').classList.toggle('aberto');
+});
+document.getElementById('menuLateral').querySelectorAll('button').forEach(btn=>{
+  btn.addEventListener('click', ()=> document.getElementById('menuLateral').classList.remove('aberto'));
+});
+
+carregar();
+</script>
+</body>
+</html>
