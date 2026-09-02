@@ -63,13 +63,24 @@ body{font-family:var(--font);font-size:14px;background:var(--bg);color:var(--tex
 .badge-green{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
 .badge-gray{background:var(--surface2);color:var(--text2);border:1px solid var(--border)}
 
-.alert-item{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-radius:var(--radius);margin-bottom:6px;border-left:3px solid;gap:12px}
+.alertas-grid{display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start}
+.alertas-col-main{min-width:0}
+.alertas-col-side{min-width:0}
+@media(max-width:900px){.alertas-grid{grid-template-columns:1fr}}
+.pago-item{padding:10px 14px;border-bottom:1px solid var(--border);background:var(--green-bg)}
+.pago-item:last-child{border-bottom:none}
+.pago-nome{font-weight:600;font-size:13px}
+.pago-meta{font-size:11px;color:var(--text2);margin-top:2px}
+.pago-val{font-weight:600;font-size:13px;color:var(--green);margin-top:4px}
+.alert-item{display:flex;align-items:center;justify-content:flex-start;padding:12px 16px;border-radius:var(--radius);margin-bottom:6px;border-left:3px solid;gap:12px}
+.alert-item>div:first-child{width:280px;max-width:280px;min-width:280px;flex-shrink:0}
 .alert-item.red{background:var(--red-bg);border-left-color:var(--red)}
 .alert-item.amber{background:var(--amber-bg);border-left-color:var(--amber)}
 .alert-item.blue{background:var(--blue-bg);border-left-color:var(--blue)}
 .alert-name{font-weight:600;font-size:13px}
 .alert-meta{font-size:11px;color:var(--text2);margin-top:2px}
-.alert-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.alert-right{display:flex;align-items:center;gap:10px;flex-shrink:0;margin-left:0}
+.alert-right>div:first-child{width:110px;min-width:110px}
 .alert-val{font-weight:600;font-size:14px}
 
 .tbl-wrap{overflow-x:auto}
@@ -271,7 +282,7 @@ textarea{resize:vertical;min-height:60px}
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg> Painel
   </button>
   <button class="drawer-item" id="dnav-alertas" onclick="goTab('alertas',this);fecharDrawer()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Alertas
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Vencidos
   </button>
   <button class="drawer-item" id="dnav-lancamentos" onclick="goTab('lancamentos',this);fecharDrawer()">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Lançamentos
@@ -305,7 +316,7 @@ textarea{resize:vertical;min-height:60px}
   </button>
   <button class="mobile-nav-item" onclick="goTab('alertas',this)" id="mnav-alertas">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-    Alertas
+    Vencidos
   </button>
   <button class="mobile-nav-item" onclick="goTab('lancamentos',this)" id="mnav-lancamentos">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -366,7 +377,7 @@ textarea{resize:vertical;min-height:60px}
     </div>
     <div class="nav-item" onclick="goTab('alertas',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-      Alertas
+      Vencidos
     </div>
     <div class="nav-section">Gestão</div>
     <div class="nav-item" onclick="goTab('lancamentos',this)">
@@ -431,51 +442,71 @@ textarea{resize:vertical;min-height:60px}
     </div>
   </div>
   <div class="metrics" id="metrics-painel"></div>
-  <div class="card">
-    <div class="card-head"><span class="card-title">Vencidos e próximos vencimentos</span></div>
-    <div class="card-body" id="painel-alertas-semana"></div>
-  </div>
-  <div class="card">
-    <div class="card-head"><span class="card-title">Em aberto — por dia de vencimento</span></div>
-    <div class="card-body" id="painel-por-dia"></div>
+  <div class="alertas-grid">
+    <div class="alertas-col-main">
+      <div class="card">
+        <div class="card-head"><span class="card-title">Vencidos e próximos vencimentos</span></div>
+        <div class="card-body" id="painel-alertas-semana"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><span class="card-title">Em aberto — por dia de vencimento</span></div>
+        <div class="card-body" id="painel-por-dia"></div>
+      </div>
+    </div>
+    <div class="alertas-col-side">
+      <div class="card">
+        <div class="card-head"><span class="card-title">Pagos no mês</span><span id="cnt-pagos-mes-painel" class="badge badge-green"></span></div>
+        <div class="card-body" id="lista-pagos-mes-painel"></div>
+      </div>
+    </div>
   </div>
 </div>
 
 <!-- ALERTAS -->
 <div id="tab-alertas" class="section">
   <div class="page-header">
-    <div><div class="page-title">Alertas</div><div class="page-sub">Vencidos e próximos vencimentos</div></div>
+    <div><div class="page-title">Vencidos</div><div class="page-sub">Vencidos e próximos vencimentos</div></div>
     <div class="btn-row">
       <input type="text" id="f-busca-alertas" placeholder="Buscar cliente..." onkeyup="window.renderAlertasGlobal()" style="max-width:200px">
       <button class="btn" onclick="imprimirAba()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Imprimir PDF</button>
       <button class="btn" onclick="window.gerarPDF()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Gerar PDF</button>
     </div>
   </div>
-  <div class="card">
-    <div class="card-head">
-      <span class="card-title">Vencidos</span>
-      <div style="display:flex;align-items:center;gap:8px">
-        <span id="cnt-vencidos" class="badge badge-red"></span>
-        <select id="sort-vencidos" onchange="window.renderAlertasGlobal()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);max-width:200px">
-          <option value="data-desc">Mais antigo primeiro</option>
-          <option value="data-asc">Mais recente primeiro</option>
-          <option value="nome-asc">A → Z</option>
-          <option value="nome-desc">Z → A</option>
-          <option value="valor-desc">Maior valor</option>
-          <option value="valor-asc">Menor valor</option>
-        </select>
+<div class="alertas-grid">
+  <div class="alertas-col-main">
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Vencidos</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span id="cnt-vencidos" class="badge badge-red"></span>
+          <select id="sort-vencidos" onchange="window.renderAlertasGlobal()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);max-width:200px">
+            <option value="data-desc">Mais antigo primeiro</option>
+            <option value="data-asc">Mais recente primeiro</option>
+            <option value="nome-asc">A → Z</option>
+            <option value="nome-desc">Z → A</option>
+            <option value="valor-desc">Maior valor</option>
+            <option value="valor-asc">Menor valor</option>
+          </select>
+        </div>
       </div>
+      <div class="card-body" id="lista-vencidos"></div>
     </div>
-    <div class="card-body" id="lista-vencidos"></div>
+    <div class="card">
+      <div class="card-head"><span class="card-title">Vencem hoje</span><span id="cnt-hoje" class="badge badge-amber"></span></div>
+      <div class="card-body" id="lista-hoje"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="card-title">Próximos 15 dias</span><span id="cnt-proximos" class="badge badge-blue"></span></div>
+      <div class="card-body" id="lista-proximos"></div>
+    </div>
   </div>
-  <div class="card">
-    <div class="card-head"><span class="card-title">Vencem hoje</span><span id="cnt-hoje" class="badge badge-amber"></span></div>
-    <div class="card-body" id="lista-hoje"></div>
+  <div class="alertas-col-side">
+    <div class="card">
+      <div class="card-head"><span class="card-title">Pagos no mês</span><span id="cnt-pagos-mes" class="badge badge-green"></span></div>
+      <div class="card-body" id="lista-pagos-mes"></div>
+    </div>
   </div>
-  <div class="card">
-    <div class="card-head"><span class="card-title">Próximos 15 dias</span><span id="cnt-proximos" class="badge badge-blue"></span></div>
-    <div class="card-body" id="lista-proximos"></div>
-  </div>
+</div>
 </div>
 
 <!-- LANÇAMENTOS -->
@@ -1370,9 +1401,48 @@ function renderPainel(){
     </div>`;
   });
   divEl.innerHTML = html || '<div class="empty">Nenhum lançamento em aberto</div>';
+
+  renderPagosMes(buscaPainel, 'cnt-pagos-mes-painel', 'lista-pagos-mes-painel');
 }
 
 // ─── ALERTAS ─────────────────────────────────────────────────────────────────
+function renderPagosMes(buscaTexto, elIdCount, elIdLista){
+  const hoje = new Date();
+  const anoAtual = hoje.getFullYear();
+  const mesAtual = hoje.getMonth(); // 0-indexado
+  let pagosMes = lancamentos.filter(l=>{
+    if(!l.pago || !l.dataRecebimento) return false;
+    const d = new Date(l.dataRecebimento+'T00:00:00');
+    return d.getFullYear()===anoAtual && d.getMonth()===mesAtual;
+  });
+  if(buscaTexto) pagosMes = pagosMes.filter(l=>nomeCliente(l.clienteId).toLowerCase().includes(buscaTexto));
+  pagosMes.sort((a,b)=>b.dataRecebimento.localeCompare(a.dataRecebimento));
+
+  const cntEl = document.getElementById(elIdCount);
+  if(cntEl) cntEl.textContent = pagosMes.length;
+
+  const listaEl = document.getElementById(elIdLista);
+  if(listaEl){
+    if(!pagosMes.length){
+      listaEl.innerHTML = '<div class="empty">Nenhum pagamento este mês</div>';
+    } else {
+      const totalPagoMes = pagosMes.reduce((s,l)=>s+Number(l.valor||0),0);
+      listaEl.innerHTML = `
+        <div style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text2)">
+          Total recebido: <b style="color:var(--green);font-size:13px">${fmtBRL(totalPagoMes)}</b>
+        </div>
+      ` + pagosMes.map(l=>`
+        <div class="pago-item">
+          <div class="pago-nome">${nomeCliente(l.clienteId)}</div>
+          <div class="pago-meta">Baixa em ${fmtData(l.dataRecebimento)} ${l.formaRecebimento?'· '+l.formaRecebimento:''}</div>
+          <div class="pago-val">${fmtBRL(l.valor)}</div>
+        </div>
+      `).join('');
+    }
+  }
+}
+window.renderPagosMes = renderPagosMes;
+
 function renderAlertas(){
   const abertos = lancamentos.filter(l=>!l.pago);
   const sort = document.getElementById('sort-vencidos')?.value || 'data-desc';
@@ -1431,6 +1501,8 @@ function renderAlertas(){
   renderLista(vencidos,'vencido','lista-vencidos');
   renderLista(hj,'hoje','lista-hoje');
   renderLista(prox,'proximo','lista-proximos');
+
+  renderPagosMes(busca, 'cnt-pagos-mes', 'lista-pagos-mes');
 }
 window.renderAlertasGlobal = renderAlertas;
 window.renderLancamentos = renderLancamentos;
@@ -2581,7 +2653,7 @@ window.excluirNF = async function(id){
 };
 window.imprimirAba = function(){
   const abas = ['painel','alertas','lancamentos','clientes','mensal'];
-  const nomes = {'painel':'Painel','alertas':'Alertas','lancamentos':'Lançamentos','clientes':'Clientes','mensal':'Fechamento Mensal'};
+  const nomes = {'painel':'Painel','alertas':'Vencidos','lancamentos':'Lançamentos','clientes':'Clientes','mensal':'Fechamento Mensal'};
   const ativa = abas.find(a=>document.getElementById('tab-'+a)?.classList.contains('active')) || 'painel';
   const sub = document.getElementById('print-sub');
   if(sub){
@@ -2593,7 +2665,7 @@ window.imprimirAba = function(){
 
 window.gerarPDF = async function(){
   const abas = ['painel','alertas','lancamentos','clientes','mensal','nf'];
-  const nomes = {'painel':'Painel','alertas':'Alertas','lancamentos':'Lancamentos','clientes':'Clientes','mensal':'Fechamento_Mensal','nf':'Notas_Fiscais'};
+  const nomes = {'painel':'Painel','alertas':'Vencidos','lancamentos':'Lancamentos','clientes':'Clientes','mensal':'Fechamento_Mensal','nf':'Notas_Fiscais'};
   const ativa = abas.find(a=>document.getElementById('tab-'+a)?.classList.contains('active')) || 'painel';
   const el = document.getElementById('tab-'+ativa);
   if(!el){ toast('Aba não encontrada'); return; }
