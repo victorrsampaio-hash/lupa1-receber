@@ -2478,7 +2478,7 @@ function renderNF(){
     <div class="metric"><div class="metric-label">Canceladas</div><div class="metric-val red">${canceladas.length}</div><div class="metric-sub">registradas</div></div>
   `;
 
-  // alertas — pendentes da semana (baseado no dia NF do cliente)
+  // alertas — todos os clientes "COM NF" que ainda não tiveram NF emitida no mês corrente
   const hj = new Date(); hj.setHours(0,0,0,0);
   const alertasNF = [];
   clientes.filter(c=>c.diaNF&&c.formaPagamento==='COM NF').forEach(c=>{
@@ -2487,9 +2487,7 @@ function renderNF(){
       const dia = String(c.diaNF).padStart(2,'0');
       const dataEmissao = new Date(`${mc}-${dia}T00:00:00`);
       const diff = Math.floor((dataEmissao-hj)/(864e5));
-      if(diff>=-3&&diff<=7){
-        alertasNF.push({cliente:c, diff, dataEmissao});
-      }
+      alertasNF.push({cliente:c, diff, dataEmissao});
     }
   });
 
@@ -2505,15 +2503,17 @@ function renderNF(){
     if(!alertasNF.length){ listaA.innerHTML=''; }
     else {
       listaA.innerHTML = alertasNF.sort((a,b)=>a.diff-b.diff).map(({cliente,diff})=>{
-        const cls = diff<0?'red':diff===0?'amber':'blue';
-        const label = diff<0?`${-diff}d atrasada`:diff===0?'Emitir hoje':`em ${diff}d`;
+        const atrasada = diff<0;
+        const cls = atrasada?'red':diff===0?'amber':'blue';
+        const label = atrasada?'Pendente':diff===0?'Emitir hoje':'A vencer';
+        const sub = atrasada?`${-diff}d atrasada`:diff===0?'hoje':`em ${diff}d`;
         return `<div class="alert-item ${cls}">
           <div>
             <div class="alert-name">${cliente.nome}</div>
             <div class="alert-meta">Dia NF: ${cliente.diaNF} · ${fmtMes(mc)} · ${cliente.empresa||'—'}</div>
           </div>
           <div class="alert-right">
-            <span class="badge badge-${cls}">${label}</span>
+            <span class="badge badge-${cls}">${label} · ${sub}</span>
             <button class="btn btn-sm btn-success" onclick="marcarNFEmitida('${cliente.id}')">✓ Emitida</button>
             <button class="btn btn-sm btn-primary" onclick="abrirModalNFCliente('${cliente.id}')">+ Detalhes</button>
           </div>
