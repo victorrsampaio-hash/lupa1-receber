@@ -293,9 +293,6 @@ textarea{resize:vertical;min-height:60px}
   <button class="drawer-item" id="dnav-mensal" onclick="goTab('mensal',this);fecharDrawer()">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Fechamento
   </button>
-  <button class="drawer-item" id="dnav-nf" onclick="goTab('nf',this);fecharDrawer()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Notas Fiscais
-  </button>
   <button class="drawer-item" id="dnav-relatorios" onclick="goTab('relatorios',this);fecharDrawer()">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> Relatórios
   </button>
@@ -329,10 +326,6 @@ textarea{resize:vertical;min-height:60px}
   <button class="mobile-nav-item" onclick="goTab('mensal',this)" id="mnav-mensal">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
     Fechamento
-  </button>
-  <button class="mobile-nav-item" onclick="goTab('nf',this)" id="mnav-nf">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-    NF
   </button>
   <button class="mobile-nav-item" onclick="goTab('relatorios',this)" id="mnav-relatorios">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
@@ -392,10 +385,6 @@ textarea{resize:vertical;min-height:60px}
     <div class="nav-item" onclick="goTab('mensal',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
       Fechamento
-    </div>
-    <div class="nav-item" onclick="goTab('nf',this)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-      Notas Fiscais
     </div>
     <div class="nav-item" onclick="goTab('relatorios',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
@@ -632,49 +621,6 @@ textarea{resize:vertical;min-height:60px}
   </div>
 </div>
 
-<!-- NOTAS FISCAIS -->
-<div id="tab-nf" class="section">
-  <div class="page-header">
-    <div><div class="page-title">Notas Fiscais</div><div class="page-sub" id="nf-sub"></div></div>
-    <div class="btn-row">
-      <button class="btn" onclick="imprimirAba()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-        Imprimir PDF
-      </button>
-      <button class="btn" onclick="window.gerarPDF()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Gerar PDF</button>
-      <button class="btn btn-primary" onclick="openModalNF()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Nova NF
-      </button>
-    </div>
-  </div>
-  <div class="metrics" id="metrics-nf"></div>
-  <div class="card" id="card-nf-alertas">
-    <div class="card-head"><span class="card-title">NFs a emitir esta semana</span><span id="cnt-nf-pendentes" class="badge badge-amber"></span></div>
-    <div class="card-body" id="lista-nf-alertas"></div>
-  </div>
-  <div class="card">
-    <div class="card-head"><span class="card-title">Histórico de notas fiscais</span></div>
-    <div class="filter-bar" style="padding:16px 20px 0">
-      <input type="text" id="f-nf-busca" placeholder="Buscar cliente..." onkeyup="renderNF()" style="max-width:220px">
-      <select id="f-nf-status" onchange="renderNF()">
-        <option value="">Todos os status</option>
-        <option value="pendente">Pendente</option>
-        <option value="emitida">Emitida</option>
-        <option value="cancelada">Cancelada</option>
-      </select>
-      <select id="f-nf-empresa" onchange="renderNF()">
-        <option value="">Todas as empresas</option>
-        <option value="L1">L1 (SyncNFe)</option>
-        <option value="VML1">VML1 (Prefeitura)</option>
-        <option value="SEM NF">Sem NF</option>
-      </select>
-      <input type="month" id="f-nf-mes" onchange="renderNF()" style="max-width:160px">
-    </div>
-    <div class="tbl-wrap" style="padding:0 0 8px" id="tbl-nf"></div>
-  </div>
-</div>
-
 <!-- RELATÓRIOS -->
 <div id="tab-relatorios" class="section">
   <div class="page-header">
@@ -788,7 +734,6 @@ textarea{resize:vertical;min-height:60px}
 </main>
 </div>
 
-<!-- MODAL NF -->
 <!-- MODAL HISTÓRICO CLIENTE -->
 <div class="modal-overlay" id="modal-historico">
   <div class="modal" style="max-width:600px">
@@ -807,58 +752,6 @@ textarea{resize:vertical;min-height:60px}
   </div>
 </div>
 
-<div class="modal-overlay" id="modal-nf">
-  <div class="modal">
-    <div class="modal-title" id="mn-title">Nova Nota Fiscal</div>
-    <div class="form-grid">
-      <div class="form-group full">
-        <label>Cliente</label>
-        <select id="mn-cli"></select>
-      </div>
-      <div class="form-group">
-        <label>Mês de referência</label>
-        <input type="month" id="mn-mes">
-      </div>
-      <div class="form-group">
-        <label>Data de emissão</label>
-        <input type="date" id="mn-data">
-      </div>
-      <div class="form-group">
-        <label>Empresa emissora</label>
-        <select id="mn-empresa">
-          <option value="">Selecione...</option>
-          <option value="L1">L1 (SyncNFe)</option>
-          <option value="VML1">VML1 (Prefeitura)</option>
-          <option value="SEM NF">Sem NF</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Número da NF</label>
-        <input type="text" id="mn-numero" placeholder="Ex: 000123">
-      </div>
-      <div class="form-group">
-        <label>Valor (R$)</label>
-        <input type="number" id="mn-valor" step="0.01" min="0" placeholder="0,00">
-      </div>
-      <div class="form-group">
-        <label>Status</label>
-        <select id="mn-status">
-          <option value="pendente">Pendente</option>
-          <option value="emitida">Emitida</option>
-          <option value="cancelada">Cancelada</option>
-        </select>
-      </div>
-      <div class="form-group full">
-        <label>Observação</label>
-        <input type="text" id="mn-obs" placeholder="Opcional">
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn" onclick="closeModal('modal-nf')">Cancelar</button>
-      <button class="btn btn-primary" onclick="salvarNF()">Salvar</button>
-    </div>
-  </div>
-</div>
 <div class="modal-overlay" id="modal-lanc">
   <div class="modal">
     <div class="modal-title" id="ml-title">Novo lançamento</div>
@@ -1150,14 +1043,12 @@ function setSyncStatus(status, msg){
 async function carregarDados(){
   setSyncStatus('loading','Carregando...');
   try {
-    const [snapC, snapL, snapNF] = await Promise.all([
+    const [snapC, snapL] = await Promise.all([
       getDocs(collection(db,'clientes')),
-      getDocs(collection(db,'lancamentos')),
-      getDocs(collection(db,'notasfiscais'))
+      getDocs(collection(db,'lancamentos'))
     ]);
     clientes = snapC.docs.map(d=>({id:d.id,...d.data()}));
     lancamentos = snapL.docs.map(d=>({id:d.id,...d.data()}));
-    notasFiscais = snapNF.docs.map(d=>({id:d.id,...d.data()}));
 
     // Primeira vez: sem clientes no banco → importa os iniciais
     if(clientes.length === 0){
@@ -1239,16 +1130,11 @@ async function migrarClientesGoverno(){
 
 // ─── FIREBASE: LISTENERS TEMPO REAL ─────────────────────────────────────────
 function iniciarListeners(){
-  onSnapshot(collection(db,'notasfiscais'), snap=>{
-    notasFiscais = snap.docs.map(d=>({id:d.id,...d.data()}));
-    renderNF();
-  if(document.getElementById("tab-mapa")?.classList.contains("active")) renderMapa();
-  }, ()=>{});
-
   onSnapshot(collection(db,'clientes'), snap=>{
     clientes = snap.docs.map(d=>({id:d.id,...d.data()}));
     setSyncStatus('ok','Sincronizado');
     renderAll();
+    if(document.getElementById("tab-mapa")?.classList.contains("active")) renderMapa();
   }, ()=>setSyncStatus('err','Erro de conexão'));
 
   onSnapshot(collection(db,'lancamentos'), snap=>{
@@ -1294,14 +1180,13 @@ function renderAll(){
   renderLancamentos();
   renderClientes();
   renderFechamento();
-  renderNF();
   if(document.getElementById("tab-mapa")?.classList.contains("active")) renderMapa();
 }
 
 function populateSelects(){
   const sorted = [...clientes].sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
   const opts = sorted.map(c=>`<option value="${c.id}">${c.nome}</option>`).join('');
-  ['ml-cli','mn-cli'].forEach(id=>{
+  ['ml-cli'].forEach(id=>{
     const el = document.getElementById(id);
     if(!el) return;
     const v = el.value;
@@ -1508,7 +1393,6 @@ window.renderAlertasGlobal = renderAlertas;
 window.renderLancamentos = renderLancamentos;
 window.renderClientes = renderClientes;
 window.renderFechamento = renderFechamento;
-window.renderNF = renderNF;
 window.limparDuplicatas = async function(){
   if(!confirm(`Isso vai analisar os ${clientes.length} clientes no banco e remover os duplicados, mantendo apenas um de cada nome. Continuar?`)) return;
 
@@ -2430,300 +2314,6 @@ window.toast = function(msg){
   setTimeout(()=>el.classList.remove('show'),2500);
 };
 
-// ─── NOTAS FISCAIS ───────────────────────────────────────────────────────────
-let notasFiscais = [];
-let editNFId = null;
-const SK_NF = 'lupa1_nf_v1';
-
-async function carregarNF(){
-  try{
-    const snap = await getDocs(collection(db,'notasfiscais'));
-    notasFiscais = snap.docs.map(d=>({id:d.id,...d.data()}));
-  }catch(e){ notasFiscais=[]; }
-}
-
-async function salvarNFDB(id, dados){
-  await setDoc(doc(db,'notasfiscais',id), dados);
-}
-async function excluirNFDB(id){
-  await deleteDoc(doc(db,'notasfiscais',id));
-}
-
-function iniciarListenerNF(){
-  onSnapshot(collection(db,'notasfiscais'), snap=>{
-    notasFiscais = snap.docs.map(d=>({id:d.id,...d.data()}));
-    renderNF();
-  if(document.getElementById("tab-mapa")?.classList.contains("active")) renderMapa();
-  });
-}
-
-function renderNF(){
-  // sub
-  const sub = document.getElementById('nf-sub');
-  if(sub) sub.textContent = `${notasFiscais.length} notas fiscais registradas`;
-
-  // métricas
-  const emitidas = notasFiscais.filter(n=>n.status==='emitida');
-  const pendentes = notasFiscais.filter(n=>n.status==='pendente');
-  const canceladas = notasFiscais.filter(n=>n.status==='cancelada');
-  const totalEmitido = emitidas.reduce((s,n)=>s+Number(n.valor||0),0);
-  const mc = mesAtual();
-  const emitMes = emitidas.filter(n=>n.mes===mc).reduce((s,n)=>s+Number(n.valor||0),0);
-
-  const mm = document.getElementById('metrics-nf');
-  if(mm) mm.innerHTML = `
-    <div class="metric"><div class="metric-label">Emitidas — ${fmtMes(mc)}</div><div class="metric-val green">${fmtBRL(emitMes)}</div><div class="metric-sub">${emitidas.filter(n=>n.mes===mc).length} notas</div></div>
-    <div class="metric"><div class="metric-label">Pendentes</div><div class="metric-val amber">${pendentes.length}</div><div class="metric-sub">a emitir</div></div>
-    <div class="metric"><div class="metric-label">Total emitido</div><div class="metric-val">${fmtBRL(totalEmitido)}</div><div class="metric-sub">todos os meses</div></div>
-    <div class="metric"><div class="metric-label">Canceladas</div><div class="metric-val red">${canceladas.length}</div><div class="metric-sub">registradas</div></div>
-  `;
-
-  // alertas — todos os clientes "COM NF" que ainda não tiveram NF emitida no mês corrente
-  const hj = new Date(); hj.setHours(0,0,0,0);
-  const alertasNF = [];
-  clientes.filter(c=>c.diaNF&&c.formaPagamento==='COM NF').forEach(c=>{
-    const jaEmitiu = notasFiscais.some(n=>n.clienteId===c.id&&n.mes===mc&&n.status==='emitida');
-    if(!jaEmitiu){
-      const dia = String(c.diaNF).padStart(2,'0');
-      const dataEmissao = new Date(`${mc}-${dia}T00:00:00`);
-      const diff = Math.floor((dataEmissao-hj)/(864e5));
-      alertasNF.push({cliente:c, diff, dataEmissao});
-    }
-  });
-
-  const cntP = document.getElementById('cnt-nf-pendentes');
-  const cardA = document.getElementById('card-nf-alertas');
-  if(cntP) cntP.textContent = alertasNF.length;
-
-  // Esconde o card inteiro se não houver alertas (elimina espaço em branco)
-  if(cardA) cardA.style.display = alertasNF.length ? 'block' : 'none';
-
-  const listaA = document.getElementById('lista-nf-alertas');
-  if(listaA){
-    if(!alertasNF.length){ listaA.innerHTML=''; }
-    else {
-      listaA.innerHTML = alertasNF.sort((a,b)=>a.diff-b.diff).map(({cliente,diff})=>{
-        const atrasada = diff<0;
-        const cls = atrasada?'red':diff===0?'amber':'blue';
-        const label = atrasada?'Pendente':diff===0?'Emitir hoje':'A vencer';
-        const sub = atrasada?`${-diff}d atrasada`:diff===0?'hoje':`em ${diff}d`;
-        return `<div class="alert-item ${cls}">
-          <div>
-            <div class="alert-name">${cliente.nome}</div>
-            <div class="alert-meta">Dia NF: ${cliente.diaNF} · ${fmtMes(mc)} · ${cliente.empresa||'—'}</div>
-          </div>
-          <div class="alert-right">
-            <span class="badge badge-${cls}">${label} · ${sub}</span>
-            <button class="btn btn-sm btn-success" onclick="marcarNFEmitida('${cliente.id}')">✓ Emitida</button>
-            <button class="btn btn-sm btn-primary" onclick="abrirModalNFCliente('${cliente.id}')">+ Detalhes</button>
-          </div>
-        </div>`;
-      }).join('');
-    }
-  }
-
-  // tabela
-  const busca = (document.getElementById('f-nf-busca')?.value||'').toLowerCase();
-  const fStatus = document.getElementById('f-nf-status')?.value||'';
-  const fEmpresa = document.getElementById('f-nf-empresa')?.value||'';
-  const fMes = document.getElementById('f-nf-mes')?.value||'';
-
-  let lista = [...notasFiscais];
-  if(busca) lista=lista.filter(n=>nomeCliente(n.clienteId).toLowerCase().includes(busca));
-  if(fStatus) lista=lista.filter(n=>n.status===fStatus);
-  if(fEmpresa) lista=lista.filter(n=>n.empresa===fEmpresa);
-  if(fMes) lista=lista.filter(n=>n.mes===fMes);
-  lista.sort((a,b)=>b.mes?.localeCompare(a.mes||'')||0);
-
-  const el = document.getElementById('tbl-nf');
-  if(!el) return;
-  if(!lista.length){ el.innerHTML='<div class="empty" style="padding:32px">Nenhuma nota fiscal encontrada</div>'; return; }
-
-  const badgeNF = s => s==='emitida'?`<span class="badge badge-green">Emitida</span>`:
-    s==='cancelada'?`<span class="badge badge-red">Cancelada</span>`:
-    `<span class="badge badge-amber">Pendente</span>`;
-
-  el.innerHTML=`<table>
-    <thead><tr><th>Cliente</th><th>Ref.</th><th>Empresa</th><th>Número NF</th><th>Data emissão</th><th>Valor</th><th>Status</th><th>Obs</th><th></th></tr></thead>
-    <tbody>${lista.map(n=>`<tr>
-      <td class="td-name">${nomeCliente(n.clienteId)}</td>
-      <td>${fmtMes(n.mes)}</td>
-      <td>${n.empresa?`<span class="chip">${n.empresa}</span>`:'—'}</td>
-      <td style="font-variant-numeric:tabular-nums">${n.numero||'—'}</td>
-      <td>${fmtData(n.dataEmissao)}</td>
-      <td class="td-val">${fmtBRL(n.valor)}</td>
-      <td>${badgeNF(n.status)}</td>
-      <td style="font-size:12px;color:var(--text2)">${n.obs||'—'}</td>
-      <td><div style="display:flex;gap:4px">
-        <button class="btn btn-sm" onclick="editNF('${n.id}')">✎</button>
-        <button class="btn btn-sm btn-danger" onclick="excluirNF('${n.id}')">✕</button>
-      </div></td>
-    </tr>`).join('')}</tbody>
-  </table>`;
-}
-
-window.openModalNF = function(){
-  editNFId=null;
-  document.getElementById('mn-title').textContent='Nova Nota Fiscal';
-  document.getElementById('mn-cli').value='';
-  document.getElementById('mn-mes').value=mesAtual();
-  document.getElementById('mn-data').value=hoje();
-  document.getElementById('mn-empresa').value='';
-  document.getElementById('mn-numero').value='';
-  document.getElementById('mn-valor').value='';
-  document.getElementById('mn-status').value='pendente';
-  document.getElementById('mn-obs').value='';
-  document.getElementById('modal-nf').classList.add('open');
-};
-
-window.marcarNFEmitida = async function(clienteId){
-  const mc = mesAtual();
-  const c = clientes.find(x=>x.id===clienteId);
-  if(!c) return;
-  const dia = c.diaNF ? String(c.diaNF).padStart(2,'0') : String(new Date().getDate()).padStart(2,'0');
-  const id = uid();
-  await salvarNFDB(id, {
-    clienteId,
-    mes: mc,
-    dataEmissao: `${mc}-${dia}`,
-    empresa: c.empresa||c.formaPagamento||'',
-    numero: '',
-    valor: Number(c.valor||0),
-    status: 'emitida',
-    obs: 'Emitida via botão rápido'
-  });
-  toast('NF marcada como emitida');
-};
-
-window.abrirModalNFCliente = function(clienteId){
-  openModalNF();
-  document.getElementById('mn-cli').value=clienteId;
-  const c = clientes.find(x=>x.id===clienteId);
-  if(c){
-    document.getElementById('mn-empresa').value=c.empresa||'';
-    document.getElementById('mn-valor').value=c.valor||'';
-    if(c.diaNF){
-      const mc = mesAtual();
-      const dia = String(c.diaNF).padStart(2,'0');
-      document.getElementById('mn-data').value=`${mc}-${dia}`;
-    }
-  }
-};
-
-window.editNF = function(id){
-  const n=notasFiscais.find(x=>x.id===id);
-  if(!n) return;
-  editNFId=id;
-  document.getElementById('mn-title').textContent='Editar Nota Fiscal';
-  document.getElementById('mn-cli').value=n.clienteId||'';
-  document.getElementById('mn-mes').value=n.mes||'';
-  document.getElementById('mn-data').value=n.dataEmissao||'';
-  document.getElementById('mn-empresa').value=n.empresa||'';
-  document.getElementById('mn-numero').value=n.numero||'';
-  document.getElementById('mn-valor').value=n.valor||'';
-  document.getElementById('mn-status').value=n.status||'pendente';
-  document.getElementById('mn-obs').value=n.obs||'';
-  document.getElementById('modal-nf').classList.add('open');
-};
-
-window.salvarNF = async function(){
-  const clienteId=document.getElementById('mn-cli').value;
-  if(!clienteId){toast('Selecione um cliente');return;}
-  const id=editNFId||uid();
-  const dados={
-    clienteId,
-    mes:document.getElementById('mn-mes').value,
-    dataEmissao:document.getElementById('mn-data').value,
-    empresa:document.getElementById('mn-empresa').value,
-    numero:document.getElementById('mn-numero').value,
-    valor:Number(document.getElementById('mn-valor').value||0),
-    status:document.getElementById('mn-status').value,
-    obs:document.getElementById('mn-obs').value
-  };
-  await salvarNFDB(id,dados);
-  closeModal('modal-nf');
-  toast(editNFId?'NF atualizada':'NF registrada');
-  editNFId=null;
-};
-
-window.excluirNF = async function(id){
-  if(!confirm('Excluir esta nota fiscal?')) return;
-  await excluirNFDB(id);
-  toast('NF excluída');
-};
-window.imprimirAba = function(){
-  const abas = ['painel','alertas','lancamentos','clientes','mensal'];
-  const nomes = {'painel':'Painel','alertas':'Vencidos','lancamentos':'Lançamentos','clientes':'Clientes','mensal':'Fechamento Mensal'};
-  const ativa = abas.find(a=>document.getElementById('tab-'+a)?.classList.contains('active')) || 'painel';
-  const sub = document.getElementById('print-sub');
-  if(sub){
-    const d = new Date().toLocaleDateString('pt-BR',{day:'numeric',month:'long',year:'numeric'});
-    sub.textContent = nomes[ativa] + ' · Impresso em ' + d;
-  }
-  window.print();
-};
-
-window.gerarPDF = async function(){
-  const abas = ['painel','alertas','lancamentos','clientes','mensal','nf'];
-  const nomes = {'painel':'Painel','alertas':'Vencidos','lancamentos':'Lancamentos','clientes':'Clientes','mensal':'Fechamento_Mensal','nf':'Notas_Fiscais'};
-  const ativa = abas.find(a=>document.getElementById('tab-'+a)?.classList.contains('active')) || 'painel';
-  const el = document.getElementById('tab-'+ativa);
-  if(!el){ toast('Aba não encontrada'); return; }
-  if(!window.jspdf||!window.html2canvas){ toast('Biblioteca não carregada, tente novamente'); return; }
-
-  toast('Gerando PDF, aguarde...');
-  const { jsPDF } = window.jspdf;
-
-  try {
-    const canvas = await html2canvas(el, {
-      scale: 2, useCORS: true,
-      backgroundColor: '#f7f6f3',
-      scrollY: -window.scrollY,
-      windowWidth: 1200
-    });
-
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const pageW = pdf.internal.pageSize.getWidth();
-    const pageH = pdf.internal.pageSize.getHeight();
-    const margin = 10;
-    const imgW = pageW - margin * 2;
-    const imgH = (canvas.height * imgW) / canvas.width;
-    const pageContentH = pageH - margin * 2;
-
-    // Cabeçalho
-    pdf.setFontSize(12); pdf.setTextColor(30,74,138);
-    pdf.text('Lupa1 — Contas a Receber', margin, margin);
-    pdf.setFontSize(9); pdf.setTextColor(120,120,120);
-    const nomeLegivel = nomes[ativa].replace(/_/g,' ');
-    pdf.text(nomeLegivel + ' · ' + new Date().toLocaleDateString('pt-BR'), margin, margin+5);
-
-    const startY = margin + 10;
-    const ratio = canvas.height / canvas.width;
-    const totalH = imgW * ratio;
-    let srcY = 0;
-
-    while(srcY < canvas.height) {
-      const sliceH = Math.min(pageContentH - (srcY===0?startY-margin:0), pageContentH) * (canvas.height/totalH);
-      const destY = srcY===0 ? startY : margin;
-      const destH = (sliceH / canvas.height) * totalH;
-
-      const tmp = document.createElement('canvas');
-      tmp.width = canvas.width; tmp.height = sliceH;
-      tmp.getContext('2d').drawImage(canvas,0,srcY,canvas.width,sliceH,0,0,canvas.width,sliceH);
-      pdf.addImage(tmp.toDataURL('image/png'),'PNG', margin, destY, imgW, destH);
-      srcY += sliceH;
-      if(srcY < canvas.height) pdf.addPage();
-    }
-
-    const d = new Date().toISOString().slice(0,10);
-    pdf.save(`lupa1_${nomes[ativa]}_${d}.pdf`);
-    toast('PDF salvo com sucesso!');
-  } catch(e){
-    console.error(e);
-    toast('Erro ao gerar PDF');
-  }
-};
 // ─── AUTENTICAÇÃO ────────────────────────────────────────────────────────────
 const SENHA_ADMIN = 'victorlupa1';
 
@@ -2789,17 +2379,8 @@ window.salvarCliente = async function(){ if(!requerAdmin()) return; await _salva
 const _excluirCliente = window.excluirCliente;
 window.excluirCliente = async function(id){ if(!requerAdmin()) return; await _excluirCliente(id); };
 
-const _salvarNF = window.salvarNF;
-window.salvarNF = async function(){ if(!requerAdmin()) return; await _salvarNF(); };
-
-const _excluirNF = window.excluirNF;
-window.excluirNF = async function(id){ if(!requerAdmin()) return; await _excluirNF(id); };
-
 const _gerarMesAtual = window.gerarMesAtual;
 window.gerarMesAtual = async function(){ if(!requerAdmin()) return; await _gerarMesAtual(); };
-
-const _marcarNFEmitida = window.marcarNFEmitida;
-window.marcarNFEmitida = async function(id){ if(!requerAdmin()) return; await _marcarNFEmitida(id); };
 </script>
 </body>
 </html>
