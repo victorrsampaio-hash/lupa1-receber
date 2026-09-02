@@ -194,6 +194,21 @@
   .confirm-row .yes{background:var(--red);color:#fff;}
   .confirm-row .no{background:var(--card);}
 
+  /* ---------- anotação ---------- */
+  .nota-box{position:relative;margin-top:10px;}
+  .nota-input{
+    width:100%;min-height:32px;max-height:70px;resize:vertical;
+    font-family:'Inter';font-size:12.5px;color:var(--ink-soft);
+    background:var(--paper);border:1px dashed var(--line);border-radius:8px;
+    padding:7px 30px 7px 10px;box-sizing:border-box;
+  }
+  .nota-input:focus{outline:none;border-color:var(--gold);color:var(--ink);}
+  .nota-limpar{
+    position:absolute;top:6px;right:6px;background:none;border:none;
+    color:var(--ink-soft);cursor:pointer;font-size:12px;padding:2px 5px;border-radius:4px;
+  }
+  .nota-limpar:hover{background:var(--paper-deep);color:var(--red);}
+
   /* ---------- stepper ---------- */
   .stepper{
     display:flex;align-items:flex-start;
@@ -782,6 +797,10 @@ function renderBoard(){
             </div>`;
         }).join('')}
       </div>
+      <div class="nota-box">
+        <textarea class="nota-input" data-nota="${c.id}" placeholder="Anotação rápida...">${c.nota || ''}</textarea>
+        ${c.nota ? `<button class="nota-limpar" data-nota-limpar="${c.id}" title="Excluir anotação">✕</button>` : ''}
+      </div>
     `;
     board.appendChild(card);
   });
@@ -939,13 +958,33 @@ document.addEventListener('click', (e)=>{
       if(!ok) return;
     }
     c.pago = !c.pago;
-    salvarClienteDB(id, {...c});
+    salvarClienteDB(c.id, {...c});
+    return;
+  }
+
+  const notaLimpar = e.target.closest('[data-nota-limpar]');
+  if(notaLimpar){
+    const c = clientes.find(x=>x.id===notaLimpar.dataset.notaLimpar);
+    if(!c) return;
+    c.nota = '';
+    salvarClienteDB(c.id, {...c});
     return;
   }
 
   if(!e.target.closest('.card-menu')){
     document.querySelectorAll('.menu-pop').forEach(m=>m.classList.remove('open'));
   }
+});
+
+document.addEventListener('focusout', (e)=>{
+  const notaInput = e.target.closest('[data-nota]');
+  if(!notaInput) return;
+  const c = clientes.find(x=>x.id===notaInput.dataset.nota);
+  if(!c) return;
+  const valor = notaInput.value.trim();
+  if((c.nota||'') === valor) return;
+  c.nota = valor;
+  salvarClienteDB(c.id, {...c});
 });
 
 document.getElementById('busca').addEventListener('input', ()=>{
