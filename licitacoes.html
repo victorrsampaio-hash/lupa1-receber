@@ -327,9 +327,12 @@
   }
   .op-btn:hover{transform:scale(1.04);}
   /* disponível (oportunidade em aberto) = destaque forte */
-  .op-btn.servico-saude.disponivel{background:#5C4426;border-color:#5C4426;color:#fff;}
-  .op-btn.servico-educacao.disponivel{background:#5C4426;border-color:#5C4426;color:#fff;}
-  .op-btn.servico-assistencia.disponivel{background:#5C4426;border-color:#5C4426;color:#fff;}
+  .op-btn.servico-saude.disponivel,
+  .op-btn.servico-educacao.disponivel,
+  .op-btn.servico-assistencia.disponivel{
+    background:#5C4426;border-color:#5C4426;color:#fff;
+    box-shadow: inset 0 0 0 999px #5C4426;
+  }
   /* já realizado = apagado, fora do foco */
   .op-btn.feito{background:transparent;border-color:var(--line);color:var(--line);font-weight:600;}
   .op-excluir{
@@ -474,7 +477,7 @@
     </div>
     <form id="formCliente">
       <label>Cliente / Município
-        <input required id="fNome" placeholder="Ex: Prefeitura de Campo Maior">
+        <input required id="fNome" list="lista-municipios" placeholder="Ex: Campo Maior" autocomplete="off">
       </label>
       <label>Produto
         <input required id="fProduto" placeholder="Ex: Capacitação de Saúde">
@@ -631,6 +634,10 @@ const SEED_DATA = [
   { nome:"MAMANGUAPE", produto:"Capacitação de Saúde", valor:900000, forma:"Adesão", adesao:"Campo Maior" }
 ];
 
+function normalizarNome(str){
+  return (str||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+
 function classeServico(produto){
   const p = (produto||'').toLowerCase();
   if(p.includes('documentário') || p.includes('documentario')) return 'servico-documentario';
@@ -780,7 +787,7 @@ async function sincronizarOportunidade(nome, produto){
     : classe==='servico-assistencia' ? 'assistencia'
     : null;
   if(!chave) return;
-  const o = oportunidades.find(x=>x.nome.toLowerCase()===nome.toLowerCase());
+  const o = oportunidades.find(x=>normalizarNome(x.nome)===normalizarNome(nome));
   if(!o || o[chave]) return;
   await salvarOportunidadeDB(o.id, {...o, [chave]: true});
 }
@@ -1057,7 +1064,7 @@ function renderOportunidades(){
 
   el.innerHTML = `
     <div class="op-add-row">
-      <input type="text" id="op-novo-nome" placeholder="Nome do cliente / município...">
+      <input type="text" id="op-novo-nome" list="lista-municipios" placeholder="Nome do cliente / município..." autocomplete="off">
       <button class="btn-primary" id="op-btn-add">+ Adicionar</button>
       <button class="btn-ghost" id="op-btn-importar">Importar clientes já cadastrados</button>
       <button class="btn-ghost" id="op-btn-pdf">Gerar PDF</button>
@@ -1077,7 +1084,7 @@ async function adicionarOportunidade(){
   const input = document.getElementById('op-novo-nome');
   const nome = input.value.trim();
   if(!nome) return;
-  const jaExiste = oportunidades.some(o=>o.nome.toLowerCase()===nome.toLowerCase());
+  const jaExiste = oportunidades.some(o=>normalizarNome(o.nome)===normalizarNome(nome));
   if(jaExiste){ alert('Esse cliente já está na lista.'); return; }
   const id = 'o'+Date.now();
   await salvarOportunidadeDB(id, {nome, ...servicosRealizadosPorCliente(nome)});
@@ -1086,7 +1093,7 @@ async function adicionarOportunidade(){
 
 function servicosRealizadosPorCliente(nome){
   const mapa = {saude:false, educacao:false, assistencia:false};
-  clientes.filter(c=>c.nome.toLowerCase()===nome.toLowerCase()).forEach(c=>{
+  clientes.filter(c=>normalizarNome(c.nome)===normalizarNome(nome)).forEach(c=>{
     const classe = classeServico(c.produto);
     if(classe==='servico-saude') mapa.saude = true;
     if(classe==='servico-educacao') mapa.educacao = true;
@@ -1096,8 +1103,13 @@ function servicosRealizadosPorCliente(nome){
 }
 
 async function importarOportunidades(){
-  const nomesUnicos = [...new Set(clientes.map(c=>c.nome))];
-  const novos = nomesUnicos.filter(nome=>!oportunidades.some(o=>o.nome.toLowerCase()===nome.toLowerCase()));
+  const vistos = new Map();
+  clientes.forEach(c=>{
+    const chave = normalizarNome(c.nome);
+    if(!vistos.has(chave)) vistos.set(chave, c.nome);
+  });
+  const nomesUnicos = [...vistos.values()];
+  const novos = nomesUnicos.filter(nome=>!oportunidades.some(o=>normalizarNome(o.nome)===normalizarNome(nome)));
   if(novos.length===0){ alert('Todos os clientes já cadastrados nas licitações já estão na lista.'); return; }
   const batch = writeBatch(db);
   novos.forEach((nome,i)=>{
@@ -1243,7 +1255,33 @@ document.getElementById('menuLateral').querySelectorAll('button').forEach(btn=>{
   btn.addEventListener('click', ()=> document.getElementById('menuLateral').classList.remove('aberto'));
 });
 
+async function carregarMunicipios(){
+  try{
+    const cache = localStorage.getItem('municipios-br-cache');
+    if(cache){
+      preencherDatalistMunicipios(JSON.parse(cache));
+      return;
+    }
+    const resp = await fetch('https://servicodados.ibge.gov.br/api/v1/localidades/municipios');
+    if(!resp.ok) return;
+    const dados = await resp.json();
+    const nomes = [...new Set(dados.map(m => m.nome))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+    localStorage.setItem('municipios-br-cache', JSON.stringify(nomes));
+    preencherDatalistMunicipios(nomes);
+  }catch(e){
+    console.error('Não foi possível carregar a lista de municípios', e);
+  }
+}
+function preencherDatalistMunicipios(nomes){
+  const dl = document.getElementById('lista-municipios');
+  if(!dl) return;
+  dl.innerHTML = nomes.map(n=>`<option value="${n}"></option>`).join('');
+}
+carregarMunicipios();
+
 carregar();
 </script>
+
+<datalist id="lista-municipios"></datalist>
 </body>
 </html>
