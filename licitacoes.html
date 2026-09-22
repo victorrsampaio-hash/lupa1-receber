@@ -145,9 +145,9 @@
     display:inline-flex;align-items:center;gap:5px;
     padding:4px 10px;border-radius:999px;margin-top:2px;
   }
-  .servico-assistencia{background:#2f7d3a;}
+  .servico-assistencia{background:#5C4426;}
   .servico-educacao{background:#b33a3a;}
-  .servico-saude{background:#2a5ea8;}
+  .servico-saude{background:#5C4426;}
   .servico-documentario{background:#2a2a2a;}
   .card-meta{
     text-align:right;display:flex;flex-direction:column;gap:6px;align-items:flex-end;
@@ -305,6 +305,38 @@
   }
   .anotacao-input:focus{outline:1px dashed var(--gold);background:var(--paper);}
   .anotacao-input::placeholder{color:var(--line);}
+
+  .op-add-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+  .op-add-row input{
+    flex:1;min-width:200px;padding:10px 14px;border-radius:10px;
+    border:1px solid var(--line);background:var(--card);font-family:'Inter';font-size:14px;
+  }
+  .op-lista{padding:6px 10px;}
+  .op-linha{
+    display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;
+    gap:10px;padding:12px 10px;border-bottom:1px solid var(--line);
+  }
+  .op-linha:last-child{border-bottom:none;}
+  .op-linha:hover{background:var(--paper);}
+  .op-nome{font-weight:600;font-size:13.5px;min-width:130px;}
+  .op-botoes{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .op-btn{
+    font-family:'Inter';font-size:11.5px;font-weight:700;
+    border-radius:999px;padding:6px 13px;cursor:pointer;white-space:nowrap;
+    border:1.5px solid transparent;transition:all .12s ease;
+  }
+  .op-btn:hover{transform:scale(1.04);}
+  /* disponível (oportunidade em aberto) = destaque forte */
+  .op-btn.servico-saude.disponivel{background:#5C4426;border-color:#5C4426;color:#fff;}
+  .op-btn.servico-educacao.disponivel{background:#5C4426;border-color:#5C4426;color:#fff;}
+  .op-btn.servico-assistencia.disponivel{background:#5C4426;border-color:#5C4426;color:#fff;}
+  /* já realizado = apagado, fora do foco */
+  .op-btn.feito{background:transparent;border-color:var(--line);color:var(--line);font-weight:600;}
+  .op-excluir{
+    background:none;border:none;color:var(--ink-soft);cursor:pointer;
+    font-size:13px;padding:4px 8px;border-radius:6px;
+  }
+  .op-excluir:hover{background:var(--paper-deep);color:var(--red);}
   .relatorio-empty{padding:60px 20px;text-align:center;color:var(--ink-soft);font-family:'Fraunces',serif;font-size:18px;}
   .empty{
     text-align:center;padding:70px 20px;color:var(--ink-soft);
@@ -380,13 +412,15 @@
 
   @media print{
     body{background:#fff;padding:0;}
-    .topbar, .tabs, .relatorio-controles, .hamburger{display:none !important;}
+    .topbar, .tabs, .relatorio-controles, .hamburger, .op-add-row{display:none !important;}
     .relatorio-card{box-shadow:none;border:1px solid #ccc;}
     .app{max-width:100%;}
     .card{box-shadow:none;border:1px solid #ccc;break-inside:avoid;page-break-inside:avoid;}
     .card-menu{display:none !important;}
     .stepper{overflow-x:visible;}
     .board{gap:10px;}
+    .op-linha{break-inside:avoid;page-break-inside:avoid;}
+    .op-excluir{display:none !important;}
   }
 </style>
 </head>
@@ -422,6 +456,7 @@
   <div class="board" id="board"></div>
   <div class="relatorio" id="relatorio" hidden></div>
   <div class="anotacoes" id="anotacoes" hidden></div>
+  <div class="oportunidades" id="oportunidades" hidden></div>
   <div class="empty" id="empty" hidden>
     <p>Nenhum processo cadastrado ainda.</p>
     <p style="font-size:13px;color:var(--ink-soft);">Use o botão "+ Novo cliente" no canto superior direito para começar.</p>
@@ -492,6 +527,23 @@ async function salvarClienteDB(id, dados){
 }
 async function excluirClienteDB(id){
   await deleteDoc(doc(db, COLECAO, id));
+}
+
+const COLECAO_OPORTUNIDADES = 'oportunidades';
+let oportunidades = [];
+
+async function salvarOportunidadeDB(id, dados){
+  await setDoc(doc(db, COLECAO_OPORTUNIDADES, id), dados);
+}
+async function excluirOportunidadeDB(id){
+  await deleteDoc(doc(db, COLECAO_OPORTUNIDADES, id));
+}
+function iniciarSincronizacaoOportunidades(){
+  onSnapshot(collection(db, COLECAO_OPORTUNIDADES), snap=>{
+    oportunidades = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    renderTabs();
+    if(abaAtual==='oportunidades') renderOportunidades();
+  }, (e)=>console.error('Erro de sincronização (oportunidades)', e));
 }
 
 const STORAGE_KEY = 'clientes-licitacoes';
@@ -634,8 +686,16 @@ async function carregar(){
     const snap2 = await getDocs(collection(db, COLECAO));
     clientes = snap2.docs.map(d=>({id:d.id, ...d.data()}));
   }
+  try{
+    const snapOp = await getDocs(collection(db, COLECAO_OPORTUNIDADES));
+    oportunidades = snapOp.docs.map(d=>({id:d.id, ...d.data()}));
+  }catch(e){
+    console.error('Erro ao carregar oportunidades', e);
+    oportunidades = [];
+  }
   render();
   iniciarSincronizacao();
+  iniciarSincronizacaoOportunidades();
 }
 
 function iniciarSincronizacao(){
@@ -727,6 +787,7 @@ function renderTabs(){
     <button class="tab-btn ${abaAtual==='recebidos'?'active':''}" data-tab="recebidos">Recebidos <span class="n">${nRecebidos}</span></button>
     <button class="tab-btn ${abaAtual==='relatorio'?'active':''}" data-tab="relatorio">Relatório <span class="n">${clientes.length}</span></button>
     <button class="tab-btn ${abaAtual==='anotacoes'?'active':''}" data-tab="anotacoes">Anotações <span class="n">${clientes.filter(c=>c.nota).length}</span></button>
+    <button class="tab-btn ${abaAtual==='oportunidades'?'active':''}" data-tab="oportunidades">Oportunidades <span class="n">${oportunidades.length}</span></button>
   `;
 }
 
@@ -946,15 +1007,114 @@ function renderAnotacoes(){
   `;
 }
 
+const OP_SERVICOS = [
+  { chave:'saude', label:'Saúde', classe:'servico-saude' },
+  { chave:'educacao', label:'Educação', classe:'servico-educacao' },
+  { chave:'assistencia', label:'Assistência Social', classe:'servico-assistencia' }
+];
+
+function renderOportunidades(){
+  const el = document.getElementById('oportunidades');
+  const lista = oportunidades.slice().sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+
+  const linhas = lista.length===0
+    ? `<div class="relatorio-empty">Nenhum cliente na lista ainda. Adicione acima.</div>`
+    : `<div class="relatorio-card op-lista">
+        ${lista.map(o=>`
+          <div class="op-linha">
+            <div class="op-nome">${o.nome}</div>
+            <div class="op-botoes">
+              ${OP_SERVICOS.map(s=>`
+                <button class="op-btn ${s.classe} ${o[s.chave]?'feito':'disponivel'}" data-op-toggle="${o.id}|${s.chave}">
+                  ${s.label}${o[s.chave] ? ' ✓' : ''}
+                </button>
+              `).join('')}
+              <button class="op-excluir" data-op-del="${o.id}" title="Remover cliente">✕</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>`;
+
+  el.innerHTML = `
+    <div class="op-add-row">
+      <input type="text" id="op-novo-nome" placeholder="Nome do cliente / município...">
+      <button class="btn-primary" id="op-btn-add">+ Adicionar</button>
+      <button class="btn-ghost" id="op-btn-importar">Importar clientes já cadastrados</button>
+      <button class="btn-ghost" id="op-btn-pdf">Gerar PDF</button>
+    </div>
+    ${linhas}
+  `;
+  document.getElementById('op-btn-pdf').addEventListener('click', ()=> window.print());
+
+  document.getElementById('op-btn-add').addEventListener('click', adicionarOportunidade);
+  document.getElementById('op-novo-nome').addEventListener('keydown', (e)=>{
+    if(e.key==='Enter'){ e.preventDefault(); adicionarOportunidade(); }
+  });
+  document.getElementById('op-btn-importar').addEventListener('click', importarOportunidades);
+}
+
+async function adicionarOportunidade(){
+  const input = document.getElementById('op-novo-nome');
+  const nome = input.value.trim();
+  if(!nome) return;
+  const jaExiste = oportunidades.some(o=>o.nome.toLowerCase()===nome.toLowerCase());
+  if(jaExiste){ alert('Esse cliente já está na lista.'); return; }
+  const id = 'o'+Date.now();
+  await salvarOportunidadeDB(id, {nome, ...servicosRealizadosPorCliente(nome)});
+  input.value='';
+}
+
+function servicosRealizadosPorCliente(nome){
+  const mapa = {saude:false, educacao:false, assistencia:false};
+  clientes.filter(c=>c.nome.toLowerCase()===nome.toLowerCase()).forEach(c=>{
+    const classe = classeServico(c.produto);
+    if(classe==='servico-saude') mapa.saude = true;
+    if(classe==='servico-educacao') mapa.educacao = true;
+    if(classe==='servico-assistencia') mapa.assistencia = true;
+  });
+  return mapa;
+}
+
+async function importarOportunidades(){
+  const nomesUnicos = [...new Set(clientes.map(c=>c.nome))];
+  const novos = nomesUnicos.filter(nome=>!oportunidades.some(o=>o.nome.toLowerCase()===nome.toLowerCase()));
+  if(novos.length===0){ alert('Todos os clientes já cadastrados nas licitações já estão na lista.'); return; }
+  const batch = writeBatch(db);
+  novos.forEach((nome,i)=>{
+    const id = 'o'+Date.now()+i;
+    batch.set(doc(db, COLECAO_OPORTUNIDADES, id), {nome, ...servicosRealizadosPorCliente(nome)});
+  });
+  await batch.commit();
+}
+
+document.addEventListener('click', async (e)=>{
+  const opToggle = e.target.closest('[data-op-toggle]');
+  if(opToggle){
+    const [id, chave] = opToggle.dataset.opToggle.split('|');
+    const o = oportunidades.find(x=>x.id===id);
+    if(!o) return;
+    await salvarOportunidadeDB(id, {...o, [chave]: !o[chave]});
+    return;
+  }
+  const opDel = e.target.closest('[data-op-del]');
+  if(opDel){
+    if(!confirm('Remover este cliente da lista de oportunidades?')) return;
+    await excluirOportunidadeDB(opDel.dataset.opDel);
+    return;
+  }
+});
+
 function render(){
   renderTabs();
   const board = document.getElementById('board');
   const relatorio = document.getElementById('relatorio');
   const anotacoes = document.getElementById('anotacoes');
+  const oportunidadesEl = document.getElementById('oportunidades');
   const ordenacao = document.getElementById('ordenacao');
   board.hidden = true;
   relatorio.hidden = true;
   anotacoes.hidden = true;
+  oportunidadesEl.hidden = true;
   ordenacao.style.display = 'none';
 
   if(abaAtual==='relatorio'){
@@ -963,6 +1123,9 @@ function render(){
   } else if(abaAtual==='anotacoes'){
     anotacoes.hidden = false;
     renderAnotacoes();
+  } else if(abaAtual==='oportunidades'){
+    oportunidadesEl.hidden = false;
+    renderOportunidades();
   } else {
     board.hidden = false;
     ordenacao.style.display = '';
