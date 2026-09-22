@@ -411,6 +411,7 @@
   }
 
   @media print{
+    *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;color-adjust:exact !important;}
     body{background:#fff;padding:0;}
     .topbar, .tabs, .relatorio-controles, .hamburger, .op-add-row{display:none !important;}
     .relatorio-card{box-shadow:none;border:1px solid #ccc;}
@@ -441,6 +442,8 @@
       <input class="search" id="busca" placeholder="Buscar cliente ou produto...">
       <select class="search" id="ordenacao">
         <option value="nenhuma">Ordenar: padrão</option>
+        <option value="nome-az">Cliente A-Z</option>
+        <option value="nome-za">Cliente Z-A</option>
         <option value="desc">Mais em andamento primeiro</option>
         <option value="asc">Menos em andamento primeiro</option>
         <option value="valor-desc">Maior valor primeiro</option>
@@ -766,8 +769,21 @@ document.getElementById('formCliente').addEventListener('submit', async (e)=>{
     const id = 'c'+Date.now();
     await salvarClienteDB(id, {nome, produto, valor, forma, adesao, tipoVaga, situacao:0, pago:false});
   }
+  await sincronizarOportunidade(nome, produto);
   fecharModal();
 });
+
+async function sincronizarOportunidade(nome, produto){
+  const classe = classeServico(produto);
+  const chave = classe==='servico-saude' ? 'saude'
+    : classe==='servico-educacao' ? 'educacao'
+    : classe==='servico-assistencia' ? 'assistencia'
+    : null;
+  if(!chave) return;
+  const o = oportunidades.find(x=>x.nome.toLowerCase()===nome.toLowerCase());
+  if(!o || o[chave]) return;
+  await salvarOportunidadeDB(o.id, {...o, [chave]: true});
+}
 
 function excluir(id){
   excluirClienteDB(id);
@@ -813,6 +829,10 @@ function renderBoard(){
     lista = lista.slice().sort((a,b)=>b.valor - a.valor);
   } else if(ordem==='valor-asc'){
     lista = lista.slice().sort((a,b)=>a.valor - b.valor);
+  } else if(ordem==='nome-az'){
+    lista = lista.slice().sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+  } else if(ordem==='nome-za'){
+    lista = lista.slice().sort((a,b)=>b.nome.localeCompare(a.nome,'pt-BR'));
   }
 
   if(lista.length===0){
