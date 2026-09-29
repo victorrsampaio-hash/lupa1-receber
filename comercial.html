@@ -970,9 +970,12 @@ textarea{resize:vertical;min-height:60px}
         <textarea id="mc-obs" placeholder="Informações adicionais"></textarea>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn" onclick="closeModal('modal-cli')">Cancelar</button>
-      <button class="btn btn-primary" onclick="salvarCliente()">Salvar</button>
+    <div class="modal-footer" style="justify-content:space-between">
+      <button class="btn" id="mc-btn-retroativos" style="display:none" onclick="window.gerarLancamentosRetroativos()" title="Cria os lançamentos em aberto dos meses já passados, desde o mês de início até hoje">↻ Gerar lançamentos retroativos</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="closeModal('modal-cli')">Cancelar</button>
+        <button class="btn btn-primary" onclick="salvarCliente()">Salvar</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2380,6 +2383,11 @@ async function renderMapa(){
 
   // Novos indicadores (quadrados) abaixo do mapa
   const totalValorMunicipios = valorNorte + valorSul;
+  const prefeituras = Object.values(clientesMun);
+  const valorMedioPrefeitura = prefeituras.length ? prefeituras.reduce((s,c)=>s+Number(c.valor||0),0)/prefeituras.length : 0;
+  const prefeituraMaior = prefeituras.length ? prefeituras.reduce((a,b)=>Number(b.valor||0)>Number(a.valor||0)?b:a) : null;
+  const prefeituraMenor = prefeituras.length ? prefeituras.reduce((a,b)=>Number(b.valor||0)<Number(a.valor||0)?b:a) : null;
+
   const indicadoresEl = document.getElementById('mapa-indicadores');
   if(indicadoresEl) indicadoresEl.innerHTML = `
     <div class="mapa-ind-card">
@@ -2397,6 +2405,18 @@ async function renderMapa(){
     <div class="mapa-ind-card ${contratosVencendoMes>0?'mapa-ind-alerta':''}">
       <div class="mapa-ind-val">${contratosVencendoMes}</div>
       <div class="mapa-ind-label">Contratos vencendo em ${fmtMes(mesRef)}</div>
+    </div>
+    <div class="mapa-ind-card">
+      <div class="mapa-ind-val pol-valor">${fmtBRL(valorMedioPrefeitura)}</div>
+      <div class="mapa-ind-label">Valor médio por prefeitura</div>
+    </div>
+    <div class="mapa-ind-card">
+      <div class="mapa-ind-val pol-valor">${prefeituraMaior?fmtBRL(prefeituraMaior.valor):'—'}</div>
+      <div class="mapa-ind-label">Maior valor${prefeituraMaior?' — '+prefeituraMaior.nome:''}</div>
+    </div>
+    <div class="mapa-ind-card">
+      <div class="mapa-ind-val pol-valor">${prefeituraMenor?fmtBRL(prefeituraMenor.valor):'—'}</div>
+      <div class="mapa-ind-label">Menor valor${prefeituraMenor?' — '+prefeituraMenor.nome:''}</div>
     </div>
   `;
 
@@ -2702,6 +2722,7 @@ window.openModalCliente = function(){
   document.getElementById('mc-cargo').value='';
   document.getElementById('mc-tempo').value='';
   document.getElementById('mc-forma').value='';
+  document.getElementById('mc-btn-retroativos').style.display='none';
   window.toggleCargoPolitico();
   document.getElementById('modal-cli').classList.add('open');
 };
@@ -2721,6 +2742,7 @@ window.editCliente = function(id){
   document.getElementById('mc-forma').value=c.formaPagamento||'';
   document.getElementById('mc-valor').value=c.valor||'';
   document.getElementById('mc-obs').value=c.obs||'';
+  document.getElementById('mc-btn-retroativos').style.display = (c.mesInicio && c.diaPagar && c.valor) ? 'inline-flex' : 'none';
   window.toggleCargoPolitico();
   document.getElementById('modal-cli').classList.add('open');
 };
@@ -2805,6 +2827,51 @@ window.excluirCliente = async function(id){
     await batch.commit();
   }
   toast('Cliente removido');
+};
+
+// ─── GERAR LANÇAMENTOS RETROATIVOS (por cliente) ────────────────────────────
+window.gerarLancamentosRetroativos = async function(){
+  if(!requerAdmin()) return;
+  if(!editCliId){ toast('Salve o cliente antes de gerar lançamentos'); return; }
+  const c = clientes.find(x=>x.id===editCliId);
+  if(!c){ toast('Cliente não encontrado'); return; }
+  if(!c.mesInicio || !c.diaPagar || !c.valor){ toast('Preencha mês de início, dia de pagamento e valor'); return; }
+
+  const [anoIni, mesIni] = c.mesInicio.split('-').map(Number);
+  const hoje = new Date();
+  const anoAtual = hoje.getFullYear(), mesAtualNum = hoje.getMonth()+1;
+
+  // Monta a lista de meses de referência (YYYY-MM) do mês de início até o mês atual, inclusive
+  const mesesParaGerar = [];
+  let ano = anoIni, mes = mesIni;
+  while(ano < anoAtual || (ano === anoAtual && mes <= mesAtualNum)){
+    // Respeita a duração do contrato, se houver
+    if(!c.tempoContrato || mesesParaGerar.length < Number(c.tempoContrato)){
+      mesesParaGerar.push(`${ano}-${String(mes).padStart(2,'0')}`);
+    }
+    mes++;
+    if(mes>12){ mes=1; ano++; }
+  }
+
+  const jaExistem = new Set(lancamentos.filter(l=>l.clienteId===c.id).map(l=>l.mes));
+  const faltantes = mesesParaGerar.filter(m=>!jaExistem.has(m));
+
+  if(!faltantes.length){ toast('Este cliente já tem lançamento em todos os meses desde o início'); return; }
+  if(!confirm(`Gerar ${faltantes.length} lançamento(s) em aberto para ${c.nome}, de ${fmtMes(faltantes[0])} até ${fmtMes(faltantes[faltantes.length-1])}?`)) return;
+
+  const dia = String(c.diaPagar).padStart(2,'0');
+  const batch = writeBatch(db);
+  faltantes.forEach(m=>{
+    const id = uid();
+    batch.set(doc(db,'lancamentos',id),{
+      clienteId:c.id, mes:m, vencimento:`${m}-${dia}`, valor:Number(c.valor),
+      formaPagamento:c.formaPagamento||'', obs:'', pago:false,
+      dataRecebimento:null, valorRecebido:null, formaRecebimento:null, obsRecebimento:null
+    });
+  });
+  await batch.commit();
+  toast(`${faltantes.length} lançamento(s) retroativo(s) gerado(s)`);
+  closeModal('modal-cli');
 };
 
 // ─── GERAR MÊS ───────────────────────────────────────────────────────────────
