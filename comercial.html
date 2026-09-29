@@ -2937,22 +2937,19 @@ window.gerarPDF = async function(){
     });
     const imgData = canvas.toDataURL('image/jpeg', 0.95);
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ orientation:'p', unit:'mm', format:'a4' });
+    // Página no mesmo formato do conteúdo (retrato ou paisagem) para caber tudo numa página só
+    const orientacao = canvas.height > canvas.width ? 'p' : 'l';
+    const pdf = new jsPDF({ orientation:orientacao, unit:'mm', format:'a4' });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
-    const imgW = pageW;
-    const imgH = (canvas.height * imgW) / canvas.width;
 
-    let heightLeft = imgH;
-    let position = 0;
-    pdf.addImage(imgData, 'JPEG', 0, position, imgW, imgH);
-    heightLeft -= pageH;
-    while(heightLeft > 0){
-      position = heightLeft - imgH;
-      pdf.addPage();
-      pdf.addImage(imgData, 'JPEG', 0, position, imgW, imgH);
-      heightLeft -= pageH;
-    }
+    // Encaixa a imagem inteira dentro de uma única página, preservando proporção
+    const escala = Math.min(pageW / canvas.width, pageH / canvas.height);
+    const imgW = canvas.width * escala;
+    const imgH = canvas.height * escala;
+    const offsetX = (pageW - imgW) / 2;
+    const offsetY = (pageH - imgH) / 2;
+    pdf.addImage(imgData, 'JPEG', offsetX, offsetY, imgW, imgH);
 
     const idAba = abaAtiva.id.replace('tab-','');
     const nomes = {'painel':'Painel','alertas':'Vencidos','lancamentos':'Lancamentos','clientes':'Clientes','mensal':'Fechamento_Mensal','politicos':'Politicos','mapa':'Mapa_PI'};
