@@ -2333,4 +2333,645 @@ async function renderMapa(){
     const infoHTML = (clienteMun && clienteCam)
       ? `<b>${nome}</b><br>${clienteMun.nome}<br>${fmtBRL(clienteMun.valor)}/mês<br>${clienteCam.nome}<br>${fmtBRL(clienteCam.valor)}/mês`
       : temContrato
-      ? `<b>${nome}
+      ? `<b>${nome}</b><br>${(clienteMun||clienteCam).nome}<br>${fmtBRL((clienteMun||clienteCam).valor)}/mês`
+      : `<b>${nome}</b><br>Sem contrato`;
+
+    const geom = f.geometry;
+    const polygons = geom.type==='Polygon' ? [geom.coordinates] : geom.coordinates;
+
+    polygons.forEach(rings=>{
+      const shape = shapeFromRing(rings[0]);
+      for(let i=1;i<rings.length;i++){ shape.holes.push(shapeFromRing(rings[i])); }
+
+      const extrudeSettings = { depth: estilo.h, bevelEnabled:true, bevelThickness:0.06, bevelSize:0.06, bevelSegments:1 };
+      const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+      const material = new THREE.MeshStandardMaterial({color:estilo.cor, metalness:0.25, roughness:0.55});
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.userData.info = infoHTML;
+
+      // contorno sutil (edges)
+      const edges = new THREE.EdgesGeometry(geometry, 20);
+      const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({color:0x0b1220, transparent:true, opacity:0.35}));
+      mesh.add(line);
+
+      mapGroup.add(mesh);
+    });
+  });
+
+  if(loadingEl) loadingEl.style.display = 'none';
+
+  // Reforço: garante dimensões corretas caso o container tenha sido medido com 0 (troca de aba)
+  setTimeout(()=>{
+    if(_mapa3d && container.clientWidth>0){
+      _mapa3d.camera.aspect = container.clientWidth/container.clientHeight;
+      _mapa3d.camera.updateProjectionMatrix();
+      _mapa3d.renderer.setSize(container.clientWidth, container.clientHeight);
+    }
+  }, 60);
+
+  // Stats
+  if(statsEl) statsEl.innerHTML = `
+    <div class="metric"><div class="metric-label">Com contrato</div><div class="metric-val" style="color:#1e4a8a">${comContrato}</div><div class="metric-sub">municípios</div></div>
+    <div class="metric"><div class="metric-label">Câmara com contrato</div><div class="metric-val" style="color:#f0a500">${camMun}</div><div class="metric-sub">câmaras</div></div>
+    <div class="metric"><div class="metric-label">Prefeitura + Câmara</div><div class="metric-val" style="color:#8e44ad">${ambos}</div><div class="metric-sub">municípios</div></div>
+    <div class="metric"><div class="metric-label">Sem contrato</div><div class="metric-val" style="color:#4caf50">${semContrato}</div><div class="metric-sub">oportunidades</div></div>
+    <div class="metric"><div class="metric-label">Total municípios PI</div><div class="metric-val">${comContrato+camMun+ambos+semContrato}</div></div>
+  `;
+
+  // Novos indicadores (quadrados) abaixo do mapa
+  const totalValorMunicipios = valorNorte + valorSul;
+  const indicadoresEl = document.getElementById('mapa-indicadores');
+  if(indicadoresEl) indicadoresEl.innerHTML = `
+    <div class="mapa-ind-card">
+      <div class="mapa-ind-val">${comContrato+ambos}</div>
+      <div class="mapa-ind-label">Prefeituras clientes</div>
+    </div>
+    <div class="mapa-ind-card">
+      <div class="mapa-ind-val">${camMun+ambos}</div>
+      <div class="mapa-ind-label">Câmaras clientes</div>
+    </div>
+    <div class="mapa-ind-card">
+      <div class="mapa-ind-val pol-valor">${fmtBRL(totalValorMunicipios)}</div>
+      <div class="mapa-ind-label">Total em contratos/mês</div>
+    </div>
+    <div class="mapa-ind-card ${contratosVencendoMes>0?'mapa-ind-alerta':''}">
+      <div class="mapa-ind-val">${contratosVencendoMes}</div>
+      <div class="mapa-ind-label">Contratos vencendo em ${fmtMes(mesRef)}</div>
+    </div>
+  `;
+
+  // Comparativo Norte x Sul
+  const nsEl = document.getElementById('mapa-norte-sul');
+  if(nsEl) nsEl.innerHTML = `
+    <div class="mapa-ns-grid">
+      <div class="mapa-ns-col">
+        <div class="mapa-ns-titulo">Região Norte</div>
+        <div class="mapa-ns-linha"><span>Prefeituras clientes</span><b>${prefeiturasNorte}</b></div>
+        <div class="mapa-ns-linha"><span>Câmaras clientes</span><b>${camarasNorte}</b></div>
+        <div class="mapa-ns-linha"><span>Total em contratos/mês</span><b class="pol-valor">${fmtBRL(valorNorte)}</b></div>
+      </div>
+      <div class="mapa-ns-col">
+        <div class="mapa-ns-titulo">Região Sul</div>
+        <div class="mapa-ns-linha"><span>Prefeituras clientes</span><b>${prefeiturasSul}</b></div>
+        <div class="mapa-ns-linha"><span>Câmaras clientes</span><b>${camarasSul}</b></div>
+        <div class="mapa-ns-linha"><span>Total em contratos/mês</span><b class="pol-valor">${fmtBRL(valorSul)}</b></div>
+      </div>
+    </div>
+  `;
+
+  // Clientes Município/Câmara cujo nome não bateu com nenhum município do mapa
+  const naoReconhecidosMun = Object.entries(clientesMun).filter(([k])=>!chavesMunUsadas.has(k)).map(([,c])=>c);
+  const naoReconhecidosCam = Object.entries(clientesCam).filter(([k])=>!chavesCamUsadas.has(k)).map(([,c])=>c);
+  const naoReconhecidos = [...naoReconhecidosMun, ...naoReconhecidosCam];
+  const cardNaoRecEl = document.getElementById('card-mapa-nao-reconhecidos');
+  const listaNaoRecEl = document.getElementById('lista-mapa-nao-reconhecidos');
+  if(cardNaoRecEl) cardNaoRecEl.style.display = naoReconhecidos.length ? 'block' : 'none';
+  if(listaNaoRecEl) listaNaoRecEl.innerHTML = naoReconhecidos.map(c=>`
+    <div class="pol-item pol-potencial">
+      <span>${c.nome}</span>
+      <span class="pol-valor">${fmtBRL(c.valor)}</span>
+    </div>`).join('');
+
+  renderListaMunicipiosClientes();
+  renderListaMunicipiosParceiros();
+  aplicarVisibilidadeValoresMapa();
+}
+window.renderMapa = renderMapa;
+
+function renderListaMunicipiosClientes(){
+  const listaEl = document.getElementById('lista-municipios-clientes');
+  const cntEl = document.getElementById('cnt-municipios-clientes');
+  const somaEl = document.getElementById('soma-municipios-clientes');
+  if(!listaEl) return;
+
+  const doMapa = clientes.filter(c=>c.categoria==='Município' || c.categoria==='Câmara Municipal');
+  const ordenado = [...doMapa].sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+  const somaTotal = ordenado.reduce((s,c)=>s+Number(c.valor||0),0);
+
+  if(cntEl) cntEl.textContent = ordenado.length;
+  if(somaEl) somaEl.innerHTML = `Soma: <span class="pol-valor">${fmtBRL(somaTotal)}</span>/mês`;
+
+  listaEl.innerHTML = ordenado.length ? ordenado.map(c=>{
+    const isCamara = c.categoria==='Câmara Municipal';
+    return `<div class="pol-item ${isCamara?'pol-parceiro':'pol-cliente'}">
+      <span>${c.nome}</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="pol-valor">${fmtBRL(c.valor)}</span>
+        <span class="badge ${isCamara?'badge-amber':'badge-green'}">${isCamara?'Câmara':'Município'}</span>
+      </div>
+    </div>`;
+  }).join('') : '<div class="empty">Nenhum cadastrado</div>';
+
+  aplicarVisibilidadeValoresMapa();
+}
+window.renderListaMunicipiosClientes = renderListaMunicipiosClientes;
+
+window.renderPainel = renderPainel;
+
+// ─── LANÇAMENTOS ─────────────────────────────────────────────────────────────
+window.setLancSort = function(col){
+  if(lancSort.col===col) lancSort.dir = lancSort.dir==='asc'?'desc':'asc';
+  else { lancSort.col=col; lancSort.dir='asc'; }
+  renderLancamentos();
+};
+
+function renderLancamentos(){
+  const busca = (document.getElementById('f-busca-lanc')?.value||'').toLowerCase();
+  const fSt  = document.getElementById('f-st')?.value||'';
+  const fMes = document.getElementById('f-mes')?.value||'';
+
+  let lista = [...lancamentos];
+  if(busca) lista=lista.filter(l=>nomeCliente(l.clienteId).toLowerCase().includes(busca));
+  if(fMes) lista=lista.filter(l=>l.mes===fMes);
+  if(fSt==='pago') lista=lista.filter(l=>l.pago);
+  else if(fSt==='vencido') lista=lista.filter(l=>!l.pago&&diasAtraso(l.vencimento)>0);
+  else if(fSt==='hoje') lista=lista.filter(l=>!l.pago&&diasAtraso(l.vencimento)===0);
+  else if(fSt==='aberto') lista=lista.filter(l=>!l.pago&&diasAtraso(l.vencimento)<0);
+
+  const ordem = document.getElementById('f-ordem-lanc')?.value||'venc-desc';
+
+  const comNome = lista.map(l=>({...l,_nome:nomeCliente(l.clienteId)}));
+  comNome.sort((a,b)=>{
+    if(ordem==='venc-desc') return b.vencimento.localeCompare(a.vencimento);
+    if(ordem==='venc-asc')  return a.vencimento.localeCompare(b.vencimento);
+    if(ordem==='nome-asc')  return a._nome.localeCompare(b._nome,'pt-BR',{sensitivity:'base'});
+    if(ordem==='nome-desc') return b._nome.localeCompare(a._nome,'pt-BR',{sensitivity:'base'});
+    if(ordem==='valor-desc') return Number(b.valor||0)-Number(a.valor||0);
+    if(ordem==='valor-asc')  return Number(a.valor||0)-Number(b.valor||0);
+    return 0;
+  });
+  lista = comNome;
+
+  const el = document.getElementById('tbl-lancamentos');
+  if(!el) return;
+  if(!lista.length){ el.innerHTML='<div class="empty">Nenhum lançamento encontrado</div>'; return; }
+
+  el.innerHTML=`<table>
+    <thead><tr>
+      <th>Cliente</th><th>Ref.</th>
+      <th>Vencimento</th>
+      <th>Forma</th>
+      <th>Valor</th>
+      <th>Status</th><th>Recebido em</th><th></th>
+    </tr></thead>
+    <tbody>${lista.map(l=>{
+      const acoes = l.pago
+        ? `<button class="btn btn-sm" onclick="estornar('${l.id}')" title="Estornar">↩</button>`
+        : `<button class="btn btn-sm btn-primary" onclick="openBaixa('${l.id}')">Baixa</button>`;
+      return `<tr>
+        <td class="td-name">${nomeCliente(l.clienteId)}</td>
+        <td>${fmtMes(l.mes)}</td>
+        <td>${fmtData(l.vencimento)}</td>
+        <td>${l.formaPagamento?`<span class="chip">${l.formaPagamento}</span>`:'—'}</td>
+        <td class="td-val">${fmtBRL(l.valor)}</td>
+        <td>${badgeStatus(l)}</td>
+        <td style="color:var(--text2);font-size:12px">${l.pago?fmtData(l.dataRecebimento):'—'}</td>
+        <td><div style="display:flex;gap:4px">${acoes}
+          <button class="btn btn-sm" onclick="editLanc('${l.id}')">✎</button>
+          <button class="btn btn-sm btn-danger" onclick="excluirLanc('${l.id}')">✕</button>
+        </div></td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
+// ─── CLIENTES ────────────────────────────────────────────────────────────────
+function renderClientes(){
+  const sub = document.getElementById('cli-sub');
+  if(sub) sub.textContent = `${clientes.length} clientes cadastrados`;
+  const busca = (document.getElementById('f-busca-cli')?.value||'').toLowerCase();
+  const forma = document.getElementById('f-forma-cli')?.value||'';
+  const dia   = document.getElementById('f-dia-cli')?.value||'';
+  const cat   = document.getElementById('f-categoria-cli')?.value||'';
+  const ordem = document.getElementById('f-ordem-cli')?.value||'nome-asc';
+
+  let lista = clientes.filter(c=>{
+    if(busca && !c.nome.toLowerCase().includes(busca)) return false;
+    if(forma && c.formaPagamento!==forma) return false;
+    if(dia && String(c.diaPagar).padStart(2,'0')!==dia && c.diaPagar!==String(parseInt(dia))) return false;
+    if(cat && c.categoria!==cat) return false;
+    return true;
+  });
+
+  lista.sort((a,b)=>{
+    if(ordem==='nome-asc')   return a.nome.localeCompare(b.nome,'pt-BR',{sensitivity:'base'});
+    if(ordem==='nome-desc')  return b.nome.localeCompare(a.nome,'pt-BR',{sensitivity:'base'});
+    if(ordem==='valor-desc') return Number(b.valor||0)-Number(a.valor||0);
+    if(ordem==='valor-asc')  return Number(a.valor||0)-Number(b.valor||0);
+    if(ordem==='dia-asc')    return (parseInt(a.diaPagar)||99)-(parseInt(b.diaPagar)||99);
+    return 0;
+  });
+
+  const el = document.getElementById('tbl-clientes');
+  if(!el) return;
+  if(!lista.length){ el.innerHTML='<div class="empty">Nenhum cliente encontrado</div>'; return; }
+
+  el.innerHTML=`<table>
+    <thead><tr><th>Nome</th><th>Categoria</th><th>Dia pagar</th><th>Dia NF</th><th>Forma</th><th>Valor mensal</th><th>Início</th><th>Duração</th><th>Em aberto</th><th></th></tr></thead>
+    <tbody>${lista.map(c=>{
+      const ab = lancamentos.filter(l=>l.clienteId===c.id&&!l.pago).reduce((s,l)=>s+Number(l.valor||0),0);
+      return `<tr>
+        <td class="td-name">${c.nome}</td>
+        <td>${chipCategoria(c.categoria)}</td>
+        <td>${c.diaPagar?'Dia '+c.diaPagar:'—'}</td>
+        <td>${c.diaNF?'Dia '+c.diaNF:'—'}</td>
+        <td>${c.formaPagamento?`<span class="chip">${c.formaPagamento}</span>`:'—'}</td>
+        <td class="td-val">${fmtBRL(c.valor)}</td>
+        <td style="font-size:12px;color:var(--text2)">${c.mesInicio?fmtMes(c.mesInicio):'—'}</td>
+        <td style="font-size:12px;color:var(--text2)">${c.tempoContrato?c.tempoContrato+' meses':'—'}</td>
+        <td class="td-val" style="${ab>0?'color:var(--red)':''}">${ab>0?fmtBRL(ab):'—'}</td>
+        <td><div style="display:flex;gap:4px">
+          <button class="btn btn-sm" onclick="verHistorico('${c.id}')" title="Histórico de pagamentos">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </button>
+          <button class="btn btn-sm" onclick="editCliente('${c.id}')">✎</button>
+          <button class="btn btn-sm btn-danger" onclick="excluirCliente('${c.id}')">✕</button>
+        </div></td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
+// ─── FECHAMENTO ──────────────────────────────────────────────────────────────
+function renderFechamento(){
+  const mesEl = document.getElementById('mes-fechamento');
+  if(!mesEl||!mesEl.value) { if(mesEl) mesEl.value=mesAtual(); }
+  const mes = mesEl ? mesEl.value : mesAtual();
+
+  const doMes = lancamentos.filter(l=>l.mes===mes);
+  const pagos  = doMes.filter(l=>l.pago);
+  const abertos = doMes.filter(l=>!l.pago);
+  const totalEsp = doMes.reduce((s,l)=>s+Number(l.valor||0),0);
+  const totalRec = pagos.reduce((s,l)=>s+Number(l.valor||0),0);
+  const totalAb  = abertos.reduce((s,l)=>s+Number(l.valor||0),0);
+
+  const mm = document.getElementById('metrics-mensal');
+  if(mm) mm.innerHTML = `
+    <div class="metric"><div class="metric-label">Previsto</div><div class="metric-val">${fmtBRL(totalEsp)}</div><div class="metric-sub">${doMes.length} lançamentos</div></div>
+    <div class="metric"><div class="metric-label">Recebido</div><div class="metric-val green">${fmtBRL(totalRec)}</div><div class="metric-sub">${pagos.length} pagos</div></div>
+    <div class="metric"><div class="metric-label">Em aberto</div><div class="metric-val red">${fmtBRL(totalAb)}</div><div class="metric-sub">${abertos.length} pendentes</div></div>
+    <div class="metric"><div class="metric-label">Realização</div><div class="metric-val ${totalEsp>0&&totalRec/totalEsp>=0.8?'green':'amber'}">${totalEsp>0?Math.round(totalRec/totalEsp*100)+'%':'—'}</div></div>
+  `;
+
+  const el = document.getElementById('tbl-mensal');
+  if(!el) return;
+  if(!doMes.length){ el.innerHTML='<div class="empty">Nenhum lançamento para este mês</div>'; return; }
+
+  el.innerHTML=`<table>
+    <thead><tr><th>Cliente</th><th>Vencimento</th><th>Forma</th><th>Valor esperado</th><th>Status</th><th>Recebido em</th><th></th></tr></thead>
+    <tbody>${doMes.sort((a,b)=>a.vencimento.localeCompare(b.vencimento)).map(l=>`<tr>
+      <td class="td-name">${nomeCliente(l.clienteId)}</td>
+      <td>${fmtData(l.vencimento)}</td>
+      <td>${l.formaPagamento?`<span class="chip">${l.formaPagamento}</span>`:'—'}</td>
+      <td class="td-val">${fmtBRL(l.valor)}</td>
+      <td>${badgeStatus(l)}</td>
+      <td style="font-size:12px;color:var(--text2)">${l.pago?fmtData(l.dataRecebimento):'—'}</td>
+      <td>${l.pago
+        ?`<button class="btn btn-sm" onclick="estornar('${l.id}')">↩</button>`
+        :`<button class="btn btn-sm btn-primary" onclick="openBaixa('${l.id}')">Baixa</button>`
+      }</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+// ─── MODAIS ──────────────────────────────────────────────────────────────────
+window.openModalLancamento = function(){
+  editLancId=null;
+  document.getElementById('ml-title').textContent='Novo lançamento';
+  document.getElementById('ml-mes').value=mesAtual();
+  document.getElementById('ml-venc').value='';
+  document.getElementById('ml-valor').value='';
+  document.getElementById('ml-forma').value='';
+  document.getElementById('ml-obs').value='';
+  document.getElementById('ml-cli').value='';
+  document.getElementById('modal-lanc').classList.add('open');
+};
+
+window.editLanc = function(id){
+  const l=lancamentos.find(x=>x.id===id);
+  if(!l) return;
+  editLancId=id;
+  document.getElementById('ml-title').textContent='Editar lançamento';
+  document.getElementById('ml-cli').value=l.clienteId;
+  document.getElementById('ml-mes').value=l.mes||'';
+  document.getElementById('ml-venc').value=l.vencimento||'';
+  document.getElementById('ml-valor').value=l.valor||'';
+  document.getElementById('ml-forma').value=l.formaPagamento||'';
+  document.getElementById('ml-obs').value=l.obs||'';
+  document.getElementById('modal-lanc').classList.add('open');
+};
+
+window.salvarLancamento = async function(){
+  const clienteId=document.getElementById('ml-cli').value;
+  const mes=document.getElementById('ml-mes').value;
+  const vencimento=document.getElementById('ml-venc').value;
+  const valor=document.getElementById('ml-valor').value;
+  if(!clienteId){toast('Selecione um cliente');return;}
+  if(!vencimento){toast('Informe a data de vencimento');return;}
+  if(!valor||Number(valor)<=0){toast('Informe o valor');return;}
+
+  const id = editLancId || uid();
+  const existing = editLancId ? lancamentos.find(l=>l.id===editLancId) : {};
+  const dados = {
+    clienteId, mes, vencimento, valor:Number(valor),
+    formaPagamento:document.getElementById('ml-forma').value,
+    obs:document.getElementById('ml-obs').value,
+    pago: existing.pago||false,
+    dataRecebimento: existing.dataRecebimento||null,
+    valorRecebido: existing.valorRecebido||null,
+    formaRecebimento: existing.formaRecebimento||null,
+    obsRecebimento: existing.obsRecebimento||null
+  };
+  await salvarLancamentoDB(id, dados);
+  closeModal('modal-lanc');
+  toast(editLancId?'Lançamento atualizado':'Lançamento adicionado');
+  editLancId=null;
+};
+
+window.toggleCargoPolitico = function(){
+  const cat = document.getElementById('mc-categoria').value;
+  const wrap = document.getElementById('mc-cargo-wrap');
+  if(wrap) wrap.style.display = (cat==='Político') ? 'block' : 'none';
+};
+
+window.openModalCliente = function(){
+  editCliId=null;
+  document.getElementById('mc-title').textContent='Novo cliente';
+  ['mc-nome','mc-inicio','mc-diaNF','mc-diaPagar','mc-valor','mc-obs'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('mc-categoria').value='';
+  document.getElementById('mc-cargo').value='';
+  document.getElementById('mc-tempo').value='';
+  document.getElementById('mc-forma').value='';
+  window.toggleCargoPolitico();
+  document.getElementById('modal-cli').classList.add('open');
+};
+
+window.editCliente = function(id){
+  const c=clientes.find(x=>x.id===id);
+  if(!c) return;
+  editCliId=id;
+  document.getElementById('mc-title').textContent='Editar cliente';
+  document.getElementById('mc-nome').value=c.nome||'';
+  document.getElementById('mc-categoria').value=c.categoria||'';
+  document.getElementById('mc-cargo').value=c.cargoPolitico||'';
+  document.getElementById('mc-inicio').value=c.mesInicio||'';
+  document.getElementById('mc-tempo').value=c.tempoContrato||'';
+  document.getElementById('mc-diaNF').value=c.diaNF||'';
+  document.getElementById('mc-diaPagar').value=c.diaPagar||'';
+  document.getElementById('mc-forma').value=c.formaPagamento||'';
+  document.getElementById('mc-valor').value=c.valor||'';
+  document.getElementById('mc-obs').value=c.obs||'';
+  window.toggleCargoPolitico();
+  document.getElementById('modal-cli').classList.add('open');
+};
+
+window.salvarCliente = async function(){
+  const nome=document.getElementById('mc-nome').value.trim();
+  if(!nome){toast('Informe o nome');return;}
+  const id=editCliId||uid();
+  const categoria = document.getElementById('mc-categoria').value;
+  const dados={
+    nome, categoria,
+    cargoPolitico: categoria==='Político' ? document.getElementById('mc-cargo').value : '',
+    mesInicio:document.getElementById('mc-inicio').value,
+    tempoContrato:document.getElementById('mc-tempo').value,
+    diaNF:document.getElementById('mc-diaNF').value,
+    diaPagar:document.getElementById('mc-diaPagar').value,
+    formaPagamento:document.getElementById('mc-forma').value,
+    valor:document.getElementById('mc-valor').value,
+    obs:document.getElementById('mc-obs').value
+  };
+  await salvarClienteDB(id, dados);
+  closeModal('modal-cli');
+  toast(editCliId?'Cliente atualizado':'Cliente cadastrado');
+  editCliId=null;
+};
+
+window.closeModal = function(id){
+  document.getElementById(id).classList.remove('open');
+};
+
+document.querySelectorAll('.modal-overlay').forEach(el=>{
+  el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');});
+});
+
+// ─── BAIXA ───────────────────────────────────────────────────────────────────
+window.openBaixa = function(id){
+  baixaLancId=id;
+  const l=lancamentos.find(x=>x.id===id);
+  document.getElementById('b-data').value=hoje();
+  document.getElementById('b-valor').value=l?l.valor:'';
+  document.getElementById('b-forma').value=(l&&l.formaPagamento)||'PIX';
+  document.getElementById('b-obs').value='';
+  document.getElementById('modal-baixa').classList.add('open');
+};
+
+window.confirmarBaixa = async function(){
+  const data=document.getElementById('b-data').value;
+  if(!data){toast('Informe a data');return;}
+  const l=lancamentos.find(x=>x.id===baixaLancId);
+  if(!l) return;
+  await salvarLancamentoDB(baixaLancId,{
+    ...l, pago:true, dataRecebimento:data,
+    valorRecebido:Number(document.getElementById('b-valor').value),
+    formaRecebimento:document.getElementById('b-forma').value,
+    obsRecebimento:document.getElementById('b-obs').value
+  });
+  closeModal('modal-baixa');
+  toast('Recebimento registrado');
+};
+
+window.estornar = async function(id){
+  if(!confirm('Estornar esta baixa?')) return;
+  const l=lancamentos.find(x=>x.id===id);
+  if(!l) return;
+  await salvarLancamentoDB(id,{...l,pago:false,dataRecebimento:null,valorRecebido:null,formaRecebimento:null,obsRecebimento:null});
+  toast('Baixa estornada');
+};
+
+window.excluirLanc = async function(id){
+  if(!confirm('Excluir este lançamento?')) return;
+  await excluirLancamentoDB(id);
+  toast('Lançamento excluído');
+};
+
+window.excluirCliente = async function(id){
+  const tem=lancamentos.some(l=>l.clienteId===id);
+  if(tem&&!confirm('Este cliente possui lançamentos. Excluir mesmo assim?')) return;
+  await excluirClienteDB(id);
+  if(tem){
+    const batch=writeBatch(db);
+    lancamentos.filter(l=>l.clienteId===id).forEach(l=>batch.delete(doc(db,'lancamentos',l.id)));
+    await batch.commit();
+  }
+  toast('Cliente removido');
+};
+
+// ─── GERAR MÊS ───────────────────────────────────────────────────────────────
+window.gerarMesAtual = async function(){
+  const mes=mesAtual();
+  const [ano,m]=mes.split('-').map(Number);
+  const jaExistem=lancamentos.filter(l=>l.mes===mes).map(l=>l.clienteId);
+  const pendentes=clientes.filter(c=>!jaExistem.includes(c.id)&&c.valor&&Number(c.valor)>0&&c.diaPagar);
+  if(!pendentes.length){toast('Todos os clientes com valor já têm lançamento neste mês');return;}
+  if(!confirm(`Gerar ${pendentes.length} lançamentos para ${fmtMes(mes)}?`)) return;
+  const batch=writeBatch(db);
+  pendentes.forEach(c=>{
+    const dia=String(c.diaPagar).padStart(2,'0');
+    const vencimento=`${ano}-${String(m).padStart(2,'0')}-${dia}`;
+    const id=uid();
+    batch.set(doc(db,'lancamentos',id),{
+      clienteId:c.id,mes,vencimento,valor:Number(c.valor),
+      formaPagamento:c.formaPagamento||'',obs:'',pago:false,
+      dataRecebimento:null,valorRecebido:null,formaRecebimento:null,obsRecebimento:null
+    });
+  });
+  await batch.commit();
+  toast(`${pendentes.length} lançamentos gerados para ${fmtMes(mes)}`);
+};
+
+// ─── EXPORT CSV ──────────────────────────────────────────────────────────────
+window.exportCSV = function(){
+  const mes=document.getElementById('mes-fechamento').value;
+  const doMes=lancamentos.filter(l=>l.mes===mes);
+  if(!doMes.length){toast('Nenhum dado para exportar');return;}
+  const linhas=[['Cliente','Mês','Vencimento','Forma','Valor','Status','Recebido em','Obs']];
+  doMes.forEach(l=>linhas.push([nomeCliente(l.clienteId),fmtMes(l.mes),fmtData(l.vencimento),
+    l.formaPagamento||'',l.valor,statusLanc(l),l.dataRecebimento?fmtData(l.dataRecebimento):'',l.obs||'']));
+  const csv=linhas.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`lupa1_${mes}.csv`;
+  a.click();
+  toast('CSV exportado');
+};
+
+// ─── IMPRIMIR / GERAR PDF DA ABA ATIVA ───────────────────────────────────────
+window.imprimirAba = function(){
+  window.print();
+};
+
+window.gerarPDF = async function(){
+  const abaAtiva = document.querySelector('.section.active');
+  if(!abaAtiva){ toast('Nenhuma aba ativa encontrada'); return; }
+  if(typeof html2canvas==='undefined' || typeof window.jspdf==='undefined'){
+    toast('Biblioteca de PDF não carregou. Verifique sua conexão.');
+    return;
+  }
+  toast('Gerando PDF...');
+  try{
+    const canvas = await html2canvas(abaAtiva, {
+      backgroundColor:'#ffffff',
+      scale:2,
+      useCORS:true,
+      windowWidth: abaAtiva.scrollWidth,
+      windowHeight: abaAtiva.scrollHeight
+    });
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation:'p', unit:'mm', format:'a4' });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const imgW = pageW;
+    const imgH = (canvas.height * imgW) / canvas.width;
+
+    let heightLeft = imgH;
+    let position = 0;
+    pdf.addImage(imgData, 'JPEG', 0, position, imgW, imgH);
+    heightLeft -= pageH;
+    while(heightLeft > 0){
+      position = heightLeft - imgH;
+      pdf.addPage();
+      pdf.addImage(imgData, 'JPEG', 0, position, imgW, imgH);
+      heightLeft -= pageH;
+    }
+
+    const idAba = abaAtiva.id.replace('tab-','');
+    const nomes = {'painel':'Painel','alertas':'Vencidos','lancamentos':'Lancamentos','clientes':'Clientes','mensal':'Fechamento_Mensal','politicos':'Politicos','mapa':'Mapa_PI'};
+    const nomeArquivo = (nomes[idAba]||idAba) + '_' + mesAtual() + '.pdf';
+    pdf.save(nomeArquivo);
+    toast('PDF gerado com sucesso');
+  }catch(e){
+    console.error(e);
+    toast('Erro ao gerar PDF');
+  }
+};
+
+// ─── TOAST ───────────────────────────────────────────────────────────────────
+window.toast = function(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),2500);
+};
+
+// ─── AUTENTICAÇÃO ────────────────────────────────────────────────────────────
+const SENHA_ADMIN = 'victorlupa1';
+
+const USUARIOS = {
+  'victorlupa1':    { nome: 'Victor',          admin: true  },
+  'iraildolupa':    { nome: 'Iraildo',          admin: false },
+  'thiagolupa':     { nome: 'Thiago Trindade',  admin: false },
+  'itamirlupa':     { nome: 'Itamir Trindade',  admin: false },
+  'tonylupa':       { nome: 'Tony Trindade',    admin: false },
+};
+
+let modoAdmin = false;
+let usuarioAtual = null;
+
+window.confirmarSenha = function(){
+  const senha = document.getElementById('login-input-senha').value.trim();
+  const usuario = USUARIOS[senha];
+  if(usuario){
+    modoAdmin = usuario.admin;
+    usuarioAtual = usuario.nome;
+    document.getElementById('login-overlay').classList.add('hide');
+    const badge = document.getElementById('modo-badge');
+    badge.className = 'modo-badge ' + (modoAdmin ? 'modo-admin' : 'modo-visit');
+    badge.textContent = (modoAdmin ? '🔐 ' : '👁 ') + usuario.nome;
+    badge.style.display = 'block';
+    // Preencher topbar e gaveta
+    const tu = document.getElementById('topbar-user');
+    if(tu) tu.textContent = usuario.nome;
+    const du = document.getElementById('drawer-user');
+    if(du) du.textContent = usuario.nome;
+    const dr = document.getElementById('drawer-role');
+    if(dr) dr.textContent = modoAdmin ? '🔐 Administrador' : '👁 Visitante';
+    carregarDados();
+  } else {
+    const erro = document.getElementById('login-erro');
+    erro.classList.add('show');
+    document.getElementById('login-input-senha').value = '';
+    setTimeout(()=>erro.classList.remove('show'), 3000);
+  }
+};
+
+function requerAdmin(){
+  if(!modoAdmin){ toast('⚠️ Apenas administradores podem realizar esta ação'); return false; }
+  return true;
+}
+
+// Proteger ações de escrita
+const _salvarLancamento = window.salvarLancamento;
+window.salvarLancamento = async function(){ if(!requerAdmin()) return; await _salvarLancamento(); };
+
+const _confirmarBaixa = window.confirmarBaixa;
+window.confirmarBaixa = async function(){ if(!requerAdmin()) return; await _confirmarBaixa(); };
+
+const _estornar = window.estornar;
+window.estornar = async function(id){ if(!requerAdmin()) return; await _estornar(id); };
+
+const _excluirLanc = window.excluirLanc;
+window.excluirLanc = async function(id){ if(!requerAdmin()) return; await _excluirLanc(id); };
+
+const _salvarCliente = window.salvarCliente;
+window.salvarCliente = async function(){ if(!requerAdmin()) return; await _salvarCliente(); };
+
+const _excluirCliente = window.excluirCliente;
+window.excluirCliente = async function(id){ if(!requerAdmin()) return; await _excluirCliente(id); };
+
+const _gerarMesAtual = window.gerarMesAtual;
+window.gerarMesAtual = async function(){ if(!requerAdmin()) return; await _gerarMesAtual(); };
+</script>
+</body>
+</html>
