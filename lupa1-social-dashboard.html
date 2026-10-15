@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lupa1 · Monitoramento de Redes</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root{
+    --bg:#0B0E14; --surface:#151A23; --surface2:#1D2430; --border:#2A3341;
+    --text:#F2F0EA; --muted:#8A93A3; --muted2:#5A6472;
+    --gold:#E3A72E; --blue:#3E8EDE; --green:#4CAF7D; --red:#E0645A;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); color:var(--text); font-family:'Inter',sans-serif;}
+  .disp{font-family:'Oswald',sans-serif; letter-spacing:.02em;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  header{border-bottom:1px solid var(--border); background:#0F1319;}
+  .header-inner{max-width:1100px; margin:0 auto; padding:14px 20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;}
+  .dot{width:9px; height:9px; border-radius:50%; background:var(--green); display:inline-block; box-shadow:0 0 0 4px rgba(76,175,125,.15);}
+  .dot.syncing{background:var(--gold); box-shadow:0 0 0 4px rgba(227,167,46,.15);}
+  .dot.error{background:var(--red); box-shadow:0 0 0 4px rgba(224,100,90,.15);}
+  .brand{font-size:20px; font-weight:700;}
+  .ts{font-size:12px; color:var(--muted);}
+  .tabs{max-width:1100px; margin:0 auto; padding:16px 20px 0;}
+  .tabs-row{display:flex; gap:6px; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; border-bottom:1px solid var(--border); padding-bottom:12px; scrollbar-width:thin;}
+  .tab-btn{padding:8px 16px; border-radius:8px; border:none; cursor:pointer; font-family:'Oswald',sans-serif; font-weight:600; font-size:14px; letter-spacing:.02em; background:transparent; color:var(--muted); flex-shrink:0; white-space:nowrap; min-height:40px;}
+  .tab-btn:hover{background:var(--surface2);}
+  .tab-btn.active{color:#0B0E14;}
+  .container{max-width:1100px; margin:0 auto; padding:24px 20px 60px;}
+  .stats-row{display:flex; gap:14px; flex-wrap:wrap; margin-bottom:28px;}
+  .stat-card{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 20px; flex:1 1 220px;}
+  .stat-label{font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px;}
+  .stat-value{font-size:28px; font-weight:700;}
+  .stat-sub{font-size:13px; color:var(--muted); margin-top:4px;}
+  .card{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; margin-bottom:24px;}
+  .card-title{font-size:16px; font-weight:600; margin-bottom:16px;}
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th{padding:10px 16px; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); text-align:left; background:var(--surface2);}
+  th.right, td.right{text-align:right;}
+  td{padding:10px 16px; border-top:1px solid var(--border);}
+  .platform-dot{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px;}
+  .growth-up{color:var(--green); font-weight:500;}
+  .growth-down{color:var(--red); font-weight:500;}
+  .growth-none{color:#4A5566; font-size:13px;}
+  .empty{background:var(--surface); border:1px dashed var(--border); border-radius:12px; padding:40px; text-align:center; color:var(--muted); margin-bottom:28px;}
+  .empty b{color:var(--gold);}
+  .platform-cards{display:flex; gap:12px; flex-wrap:wrap; margin-bottom:24px;}
+  .pcard{background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px; flex:1 1 220px;}
+  .pcard .handle{font-size:13px; color:var(--muted); margin-bottom:2px;}
+  .pcard .label{font-family:'Oswald',sans-serif; font-size:15px; font-weight:600; margin-bottom:8px;}
+  .pcard .value{font-family:'JetBrains Mono',monospace; font-size:22px; font-weight:700;}
+  .pcard .alcance{font-size:12px; color:var(--muted2); margin-top:6px;}
+  .form-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:16px; margin-bottom:20px;}
+  .field-label{font-size:12px; color:var(--muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:.05em;}
+  input, select{width:100%; background:#0F1319; border:1px solid var(--border); border-radius:8px; padding:9px 12px; color:var(--text); font-size:14px; font-family:'JetBrains Mono',monospace;}
+  select{font-family:'Inter',sans-serif;}
+  .btn-save{background:var(--gold); color:#0B0E14; border:none; border-radius:8px; padding:10px 24px; font-family:'Oswald',sans-serif; font-weight:600; font-size:14px; cursor:pointer;}
+  .btn-save:disabled{opacity:.5; cursor:not-allowed;}
+  .save-error{color:var(--red); margin-left:12px; font-size:13px;}
+  .del-btn{background:none; border:none; color:var(--red); cursor:pointer; font-size:12px;}
+  canvas{max-height:300px;}
+  .hist-title{padding:16px 20px; border-bottom:1px solid var(--border);}
+  .hist-title span{color:var(--muted2); font-weight:400;}
+  textarea{font-family:'JetBrains Mono',monospace;}
+  .table-scroll{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+  .table-scroll table{min-width:760px;}
+
+  .metric-toggle{display:flex; gap:6px; margin-bottom:18px; flex-wrap:wrap;}
+  .metric-btn{padding:8px 18px; border-radius:8px; border:1px solid var(--border); background:transparent; color:var(--muted); cursor:pointer; font-family:'Oswald',sans-serif; font-weight:600; font-size:14px; min-height:40px;}
+  .metric-btn.active{background:var(--gold); color:#0B0E14; border-color:var(--gold);}
+  .net-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(310px,1fr)); gap:16px; margin-bottom:24px;}
+  .net-card{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px; border-top:4px solid var(--net-color,#888);}
+  .net-head{display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:2px;}
+  .net-name{font-family:'Oswald',sans-serif; font-size:18px; font-weight:700; letter-spacing:.02em;}
+  .net-count{font-size:11px; color:var(--muted2); text-transform:uppercase; letter-spacing:.05em;}
+  .net-total{font-family:'JetBrains Mono',monospace; font-size:26px; font-weight:700; margin-top:6px;}
+  .net-var{margin:2px 0 14px; font-size:13px;}
+  .net-bars{display:flex; align-items:flex-end; gap:10px; height:150px; padding-top:6px; border-bottom:1px solid var(--border);}
+  .net-col{flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%;}
+  .net-val{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text); margin-bottom:4px; white-space:nowrap;}
+  .net-bar{width:100%; max-width:56px; border-radius:4px 4px 0 0; background:var(--net-color,#888); min-height:3px;}
+  .net-bar.old{opacity:.5;}
+  .net-bar.none{min-height:0; height:0 !important;}
+  .net-bar.carried{background:transparent; border:1px dashed var(--net-color,#888); border-bottom:none; opacity:.7;}
+  .net-val.carried{color:var(--muted2);}
+  .net-labels{display:flex; gap:10px; margin-top:6px;}
+  .net-labels span{flex:1; text-align:center; font-size:11px; color:var(--muted); min-width:0;}
+  .net-note{font-size:12px; color:var(--muted2); margin:-8px 0 20px;}
+
+  body.pdf-export{
+    --bg:#FFFFFF; --surface:#F4F5F7; --surface2:#E8EAED; --border:#D3D7DD;
+    --text:#161A21; --muted:#5A6472; --muted2:#7A8390;
+    --gold:#9C6E0C; --blue:#1F5FA0; --green:#1B7A4F; --red:#B5372E;
+  }
+  body.pdf-export .platform-dot{ box-shadow: 0 0 0 1px rgba(0,0,0,.15) inset; }
+  body.pdf-export .metric-toggle{display:none;}
+  body.pdf-export.pdf-hide-table .monthly-table{display:none;}
+  body.pdf-export .net-card[data-platform="Threads"]{--net-color:#555555 !important;}
+  body.pdf-export .net-card[data-platform="X"]{--net-color:#7A8390 !important;}
+  .btn-save{min-height:44px;}
+  .del-btn{min-height:32px; padding:6px 8px;}
+
+  @media (max-width: 640px){
+    .header-inner{padding:12px 14px;}
+    .brand{font-size:16px;}
+    .tabs{padding:12px 14px 0;}
+    .tab-btn{padding:8px 12px; font-size:13px;}
+    .container{padding:16px 14px 50px;}
+    .stat-card{flex:1 1 100%; padding:16px;}
+    .stat-value{font-size:24px;}
+    .card{padding:14px;}
+    .form-grid{grid-template-columns:1fr;}
+    .platform-cards{flex-direction:column;}
+    .pcard{flex:1 1 100%;}
+    canvas{max-height:260px;}
+    th, td{padding:8px 10px; font-size:12px;}
+    #pdfBtn{width:100%; margin-top:6px;}
+    .header-inner{justify-content:flex-start;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <span class="dot" id="statusDot"></span>
+      <span class="brand disp">LUPA1 · MONITORAMENTO</span>
+    </div>
+    <div class="ts mono"><span id="lastUpdate">Conectando ao banco de dados…</span> · versão 14/10/26 (cartões por rede)</div>
+    <button id="pdfBtn" class="btn-save" style="padding:6px 14px; font-size:12px;" onclick="gerarPDF()">Gerar PDF</button>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tabs-row" id="tabsRow"></div>
+</div>
+
+<div class="container" id="content">Carregando painel…</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, doc, getDocs, setDoc }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAI9E-MWhR4exFTlFyRgL0ngVe6iv-ewvA",
+  authDomain: "comercial-lupa1.firebaseapp.com",
+  projectId: "comercial-lupa1",
+  storageBucket: "comercial-lupa1.firebasestorage.app",
+  messagingSenderId: "349838430031",
+  appId: "1:349838430031:web:46b4dae4f6493522a3bf3a"
+};
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp);
+const COLECAO = 'social-monitoramento';
+
+const ACCOUNTS = [
+  { id:'ig_portal',   platform:'Instagram', handle:'@PORTALLUPA1',        label:'Portal Lupa1' },
+  { id:'ig_noticias', platform:'Instagram', handle:'@tv.lupa1',          label:'Lupa1 Notícias' },
+  { id:'ig_cidades',  platform:'Instagram', handle:'@LUPA1CIDADES',       label:'Lupa1 Cidades' },
+  { id:'ig_tvamapa',  platform:'Instagram', handle:'@TVLUPA1AMAPA',       label:'TV Lupa1 Amapá' },
+  { id:'ig_podcosta', platform:'Instagram', handle:'@PODCOSTATHE',        label:'PodCosta The' },
+  { id:'ig_tony',     platform:'Instagram', handle:'@TONY_TRINDADE',      label:'Tony Trindade' },
+  { id:'ig_thiago',   platform:'Instagram', handle:'@THIAGOTRINDADE',     label:'Thiago Trindade' },
+  { id:'tt_lupa1',    platform:'TikTok',    handle:'@lupa1tvradioportal', label:'Lupa1 TV Rádio Portal' },
+  { id:'kw_lupa1',    platform:'Kwai',      handle:'@Lupa1.oficial',      label:'Lupa1 Oficial' },
+  { id:'x_lupa1',     platform:'X',         handle:'@canalLupa1',        label:'Canal Lupa1' },
+  { id:'yt_tvlupa1',  platform:'YouTube',   handle:'@TVLupa1.Oficial',   label:'TV Lupa1 Oficial' },
+  { id:'yt_podcosta', platform:'YouTube',   handle:'@PodCostaThe',       label:'PodCosta The' },
+  { id:'sp_lupa1',    platform:'Spotify',   handle:'(aguardando link)',  label:'Lupa1' },
+  { id:'th_lupa1',    platform:'Threads',   handle:'@portallupa1',       label:'Portal Lupa1' },
+  { id:'fb_lupa1',    platform:'Facebook',  handle:'@lupa1.oficial',     label:'Lupa1 Oficial' },
+];
+const PLATFORM_ORDER = ['Instagram','TikTok','Kwai','X','YouTube','Spotify','Threads','Facebook'];
+const PLATFORM_COLORS = { Instagram:'#E3A72E', TikTok:'#35B7A3', Kwai:'#E0645A', X:'#C7CDD6', YouTube:'#8B7CE0', Spotify:'#1DB954', Threads:'#F2F0EA', Facebook:'#3E8EDE' };
+const LINE_COLORS = ['#E3A72E','#3E8EDE','#4CAF7D','#E0645A','#8B7CE0','#35B7A3','#C7CDD6'];
+const MONTH_NAMES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+let entries = {};
+let currentTab = 'overview';
+let charts = [];
+let formState = { account: ACCOUNTS[0].id, date: todayISO(), seguidores:'', alcance:'' };
+
+function todayISO(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function formatDate(key){ if(!key) return ''; const [y,m,d] = key.split('-'); return `${d}/${m}/${y.slice(2)}`; }
+function formatNumber(n){ if(n===null||n===undefined||isNaN(n)) return '—'; return Number(n).toLocaleString('pt-BR'); }
+function sortedDates(accId){ return Object.keys(entries[accId]||{}).sort(); }
+function latestEntry(accId){ const ds=sortedDates(accId); if(!ds.length) return null; const d=ds[ds.length-1]; return {date:d, ...entries[accId][d]}; }
+function previousEntry(accId){ const ds=sortedDates(accId); if(ds.length<2) return null; const d=ds[ds.length-2]; return {date:d, ...entries[accId][d]}; }
+function growth(curr, prev){ if(curr==null||prev==null) return null; const abs=curr-prev; const pct = prev===0? null : (abs/prev)*100; return {abs, pct}; }
+function growthHtml(g){
+  if(!g || g.abs===null) return '<span class="growth-none">sem histórico</span>';
+  const positive = g.abs >= 0;
+  const cls = positive ? 'growth-up' : 'growth-down';
+  const pctStr = g.pct!==null ? ` (${g.pct>=0?'+':''}${g.pct.toFixed(1)}%)` : '';
+  return `<span class="mono ${cls}">${positive?'▲':'▼'} ${formatNumber(Math.abs(g.abs))}${pctStr}</span>`;
+}
+
+function setStatus(state){
+  const dot = document.getElementById('statusDot');
+  dot.className = 'dot' + (state==='syncing' ? ' syncing' : state==='error' ? ' error' : '');
+}
+
+async function loadEntries(){
+  setStatus('syncing');
+  try{
+    const snap = await getDocs(collection(db, COLECAO));
+    entries = {};
+    snap.forEach(d => { entries[d.id] = (d.data().entries) || {}; });
+    setStatus('ok');
+  }catch(e){
+    console.error(e);
+    setStatus('error');
+  }
+}
+
+async function persistAccount(accountId){
+  setStatus('syncing');
+  try{
+    await setDoc(doc(db, COLECAO, accountId), { entries: entries[accountId] || {} });
+    setStatus('ok');
+    return true;
+  }catch(e){
+    console.error(e);
+    setStatus('error');
+    return false;
+  }
+}
+
+function formatMonthLabel(mKey){ const [y,m]=mKey.split('-'); return `${MONTH_NAMES[parseInt(m,10)-1]}/${y.slice(2)}`; }
+function allMonthKeys(){
+  const set = new Set();
+  ACCOUNTS.forEach(a=> sortedDates(a.id).forEach(d=> set.add(d.slice(0,7))));
+  return Array.from(set).sort();
+}
+function entryForMonth(accId, monthKey){
+  const ds = sortedDates(accId).filter(d=>d.slice(0,7)===monthKey);
+  if(!ds.length) return null;
+  const d = ds[ds.length-1];
+  return { date:d, ...entries[accId][d] };
+}
+function valueAtOrBeforeMonth(accId, monthKey, field){
+  const ds = sortedDates(accId).filter(d=>d.slice(0,7) <= monthKey);
+  if(!ds.length) return null;
+  const d = ds[ds.length-1];
+  return entries[accId][d][field];
+}
+
+function renderTabs(){
+  const row = document.getElementById('tabsRow');
+  const tabs = [{id:'overview', label:'Visão Geral'}, {id:'monthly', label:'Comparativo Mensal'}, ...PLATFORM_ORDER.map(p=>({id:p,label:p,color:PLATFORM_COLORS[p]})), {id:'entry', label:'Lançar Dados', accent:true}];
+  row.innerHTML = tabs.map(t=>{
+    const active = currentTab===t.id;
+    const bg = active ? (t.color || (t.accent? '#E3A72E':'#1D2430')) : 'transparent';
+    return `<button class="tab-btn${active?' active':''}" style="background:${bg};" onclick="setTab('${t.id}')">${t.label}</button>`;
+  }).join('');
+}
+function setTab(id){ currentTab = id; renderTabs(); renderContent(); }
+window.setTab = setTab;
+
+function computeLastUpdate(){
+  let latest = null;
+  ACCOUNTS.forEach(a=>{ const ds = sortedDates(a.id); if(ds.length){ const d = ds[ds.length-1]; if(!latest || d>latest) latest=d; } });
+  return latest;
+}
+
+function destroyCharts(){ charts.forEach(c=>c.destroy()); charts = []; }
+
+function renderContent(){
+  destroyCharts();
+  document.getElementById('lastUpdate').textContent = (()=>{ const lu = computeLastUpdate(); return lu ? `Última atualização: ${formatDate(lu)}` : 'Nenhum dado lançado ainda'; })();
+
+  const el = document.getElementById('content');
+  if(currentTab === 'overview'){ el.innerHTML = overviewHtml(); mountOverviewChart(); }
+  else if(currentTab === 'monthly'){ el.innerHTML = monthlyHtml(); mountMonthlyCharts(); }
+  else if(PLATFORM_ORDER.includes(currentTab)){ el.innerHTML = platformHtml(currentTab); mountPlatformCharts(currentTab); }
+  else if(currentTab === 'entry'){ el.innerHTML = entryHtml(); }
+}
+
+function overviewRows(){
+  return ACCOUNTS.map(a=>{
+    const curr = latestEntry(a.id);
+    const prev = previousEntry(a.id);
+    const g = curr && prev ? growth(curr.seguidores, prev.seguidores) : null;
+    const gAlcance = curr && prev ? growth(curr.alcance, prev.alcance) : null;
+    return { ...a, curr, prev, growth:g, growthAlcance:gAlcance };
+  });
+}
+
+function overviewHtml(){
+  const rows = overviewRows();
+  let seguidores=0, alcance=0, tracked=0;
+  rows.forEach(r=>{ if(r.curr){ tracked++; seguidores += r.curr.seguidores||0; alcance += r.curr.alcance||0; } });
+  const withGrowth = rows.filter(r=>r.growth && r.growth.abs!==null);
+  const topGainer = withGrowth.length ? withGrowth.reduce((max,r)=> r.growth.abs > (max.growth?.abs ?? -Infinity) ? r : max, withGrowth[0]) : null;
+  const barData = rows.filter(r=>r.curr).sort((a,b)=>b.curr.seguidores-a.curr.seguidores);
+
+  return `
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-label">Contas monitoradas</div><div class="stat-value disp">${tracked}/${ACCOUNTS.length}</div><div class="stat-sub">com dado lançado</div></div>
+      <div class="stat-card"><div class="stat-label">Seguidores (total)</div><div class="stat-value disp mono" style="color:var(--gold)">${formatNumber(seguidores)}</div></div>
+      <div class="stat-card"><div class="stat-label">Alcance (soma)</div><div class="stat-value disp mono" style="color:var(--blue)">${formatNumber(alcance)}</div></div>
+      <div class="stat-card"><div class="stat-label">Maior crescimento</div><div class="stat-value disp">${topGainer? topGainer.label : '—'}</div><div class="stat-sub">${topGainer? growthHtml(topGainer.growth) : 'aguardando 2+ lançamentos'}</div></div>
+    </div>
+    ${barData.length>0 ? `
+      <div class="card"><div class="card-title disp">Visualizações (alcance) por conta</div><canvas id="overviewChartAlcance" height="${Math.max(220, barData.length*34)}"></canvas></div>
+      <div class="card"><div class="card-title disp">Seguidores por conta</div><canvas id="overviewChart" height="${Math.max(220, barData.length*34)}"></canvas></div>
+    ` : `<div class="empty">Nenhum dado lançado ainda. Vá em <b>Lançar Dados</b> para começar a alimentar o painel.</div>`}
+    <div class="card" style="padding:0;">
+      <div class="table-scroll">
+      <table>
+        <thead><tr><th>Rede</th><th>Conta</th><th class="right">Seguidores</th><th class="right">Variação (seg.)</th><th class="right">Alcance</th><th class="right">Variação (alcance)</th><th class="right">Última coleta</th></tr></thead>
+        <tbody>
+          ${rows.map(r=>`
+            <tr>
+              <td><span class="platform-dot" style="background:${PLATFORM_COLORS[r.platform]}"></span>${r.platform}</td>
+              <td>${r.label} <span style="color:var(--muted2)">${r.handle}</span></td>
+              <td class="right mono">${r.curr? formatNumber(r.curr.seguidores) : '—'}</td>
+              <td class="right">${growthHtml(r.growth)}</td>
+              <td class="right mono">${r.curr? formatNumber(r.curr.alcance) : '—'}</td>
+              <td class="right">${growthHtml(r.growthAlcance)}</td>
+              <td class="right mono" style="color:var(--muted2)">${r.curr? formatDate(r.curr.date) : '—'}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+      </div>
+    </div>
+  `;
+}
+
+function mountOverviewChart(){
+  const rows = overviewRows().filter(r=>r.curr).sort((a,b)=>b.curr.seguidores-a.curr.seguidores);
+
+  const canvas = document.getElementById('overviewChart');
+  if(canvas){
+    const chart = new Chart(canvas, {
+      type:'bar',
+      data:{
+        labels: rows.map(r=>`${r.platform} · ${r.label}`),
+        datasets:[{ data: rows.map(r=>r.curr.seguidores), backgroundColor: rows.map(r=>PLATFORM_COLORS[r.platform]), borderRadius:4 }]
+      },
+      options:{
+        indexAxis:'y',
+        plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: (ctx)=> formatNumber(ctx.parsed.x) } } },
+        scales:{
+          x:{ ticks:{ color:'#8A93A3', callback:(v)=>formatNumber(v) }, grid:{ color:'#2A3341' } },
+          y:{ ticks:{ color:'#F2F0EA' }, grid:{ display:false } }
+        }
+      }
+    });
+    charts.push(chart);
+  }
+
+  const canvasAlcance = document.getElementById('overviewChartAlcance');
+  if(canvasAlcance){
+    const rowsAlcance = rows.filter(r=>r.curr.alcance !== null && r.curr.alcance !== undefined).sort((a,b)=>b.curr.alcance-a.curr.alcance);
+    const chartAlcance = new Chart(canvasAlcance, {
+      type:'bar',
+      data:{
+        labels: rowsAlcance.map(r=>`${r.platform} · ${r.label}`),
+        datasets:[{ data: rowsAlcance.map(r=>r.curr.alcance), backgroundColor: rowsAlcance.map(r=>PLATFORM_COLORS[r.platform]), borderRadius:4 }]
+      },
+      options:{
+        indexAxis:'y',
+        plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: (ctx)=> formatNumber(ctx.parsed.x) } } },
+        scales:{
+          x:{ ticks:{ color:'#8A93A3', callback:(v)=>formatNumber(v) }, grid:{ color:'#2A3341' } },
+          y:{ ticks:{ color:'#F2F0EA' }, grid:{ display:false } }
+        }
+      }
+    });
+    charts.push(chartAlcance);
+  }
+}
+
+function platformHtml(platform){
+  const accounts = ACCOUNTS.filter(a=>a.platform===platform);
+  const cards = accounts.map(a=>{
+    const curr = latestEntry(a.id); const prev = previousEntry(a.id);
+    const g = curr && prev ? growth(curr.seguidores, prev.seguidores) : null;
+    return `<div class="pcard">
+      <div class="handle">${a.handle}</div>
+      <div class="label disp">${a.label}</div>
+      <div class="value">${curr? formatNumber(curr.seguidores) : '—'}</div>
+      <div style="margin-top:4px;">${growthHtml(g)}</div>
+      ${curr? `<div class="alcance">Alcance: ${formatNumber(curr.alcance)} · coletado em ${formatDate(curr.date)}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  const allDates = Array.from(new Set(accounts.flatMap(a=>sortedDates(a.id)))).sort();
+
+  return `
+    <div class="platform-cards">${cards}</div>
+    ${allDates.length>0 ? `
+      <div class="card"><div class="card-title disp">Seguidores ao longo do tempo</div><canvas id="chartSeguidores"></canvas></div>
+      <div class="card"><div class="card-title disp">Alcance ao longo do tempo</div><canvas id="chartAlcance"></canvas></div>
+    ` : `<div class="empty">Nenhum dado lançado ainda. Vá em <b>Lançar Dados</b> para começar a alimentar o painel.</div>`}
+  `;
+}
+
+function mountPlatformCharts(platform){
+  const accounts = ACCOUNTS.filter(a=>a.platform===platform);
+  const allDates = Array.from(new Set(accounts.flatMap(a=>sortedDates(a.id)))).sort();
+  if(!allDates.length) return;
+  const labels = allDates.map(formatDate);
+
+  const segCanvas = document.getElementById('chartSeguidores');
+  if(segCanvas){
+    const chart = new Chart(segCanvas, {
+      type:'line',
+      data:{ labels, datasets: accounts.map((a,i)=>({
+        label:a.label,
+        data: allDates.map(d=> entries[a.id]?.[d]?.seguidores ?? null),
+        borderColor: LINE_COLORS[i%LINE_COLORS.length],
+        backgroundColor: LINE_COLORS[i%LINE_COLORS.length],
+        spanGaps:true, tension:.3
+      }))},
+      options:{ plugins:{ legend:{ labels:{ color:'#8A93A3' } } },
+        scales:{ x:{ ticks:{color:'#8A93A3'}, grid:{color:'#2A3341'} }, y:{ ticks:{color:'#8A93A3', callback:(v)=>formatNumber(v)}, grid:{color:'#2A3341'} } } }
+    });
+    charts.push(chart);
+  }
+  const alcCanvas = document.getElementById('chartAlcance');
+  if(alcCanvas){
+    const chart = new Chart(alcCanvas, {
+      type:'line',
+      data:{ labels, datasets: accounts.map((a,i)=>({
+        label:a.label,
+        data: allDates.map(d=> entries[a.id]?.[d]?.alcance ?? null),
+        borderColor: LINE_COLORS[i%LINE_COLORS.length],
+        backgroundColor: LINE_COLORS[i%LINE_COLORS.length],
+        spanGaps:true, tension:.3
+      }))},
+      options:{ plugins:{ legend:{ labels:{ color:'#8A93A3' } } },
+        scales:{ x:{ ticks:{color:'#8A93A3'}, grid:{color:'#2A3341'} }, y:{ ticks:{color:'#8A93A3', callback:(v)=>formatNumber(v)}, grid:{color:'#2A3341'} } } }
+    });
+    charts.push(chart);
+  }
+}
+
+function monthlyHtml(){
+  const months = allMonthKeys();
+  if(months.length === 0){
+    return `<div class="empty">Nenhum dado lançado ainda. Vá em <b>Lançar Dados</b> para começar a alimentar o painel.</div>`;
+  }
+
+  const monthLabels = months.map(formatMonthLabel);
+
+  const rows = ACCOUNTS.map(a=>{
+    const cells = months.map(m => entryForMonth(a.id, m));
+    return { ...a, cells };
+  });
+
+  const tableHtml = `
+    <div class="card monthly-table" style="padding:0;">
+      <div class="card-title disp" style="padding:20px 20px 0;">Seguidores por conta — mês a mês</div>
+      <div class="table-scroll" style="padding:16px 20px 20px;">
+        <table>
+          <thead>
+            <tr>
+              <th>Conta</th>
+              ${monthLabels.map(l=>`<th class="right">${l}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(r=>`
+              <tr>
+                <td><span class="platform-dot" style="background:${PLATFORM_COLORS[r.platform]}"></span>${r.label}</td>
+                ${r.cells.map((c,i)=>{
+                  if(!c) return `<td class="right" style="color:var(--muted2)">—</td>`;
+                  const prevCell = i>0 ? r.cells.slice(0,i).reverse().find(x=>x) : null;
+                  const g = prevCell ? growth(c.seguidores, prevCell.seguidores) : null;
+                  return `<td class="right mono">${formatNumber(c.seguidores)}${g ? `<br>${growthHtml(g)}` : ''}</td>`;
+                }).join('')}
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  const isSeg = monthlyMetric === 'seguidores';
+  const metricLabel = isSeg ? 'Seguidores' : 'Alcance (visualizações)';
+
+  const cards = PLATFORM_ORDER.map(platform=>{
+    const accs = ACCOUNTS.filter(a=>a.platform===platform);
+    const series = months.map(m=>{
+      let sum = null;
+      accs.forEach(a=>{
+        const v = valueAtOrBeforeMonth(a.id, m, monthlyMetric);
+        if(v !== null && v !== undefined){ sum = (sum||0) + v; }
+      });
+      return sum;
+    });
+    if(series.every(v=>v===null)) return '';
+    const real = months.map(m=> accs.some(a=>entryForMonth(a.id,m)));
+    const realIdx = real.map((r,i)=>r?i:-1).filter(i=>i>=0);
+    const lastIdx = series.length-1;
+    const lastReal = realIdx.length ? realIdx[realIdx.length-1] : -1;
+    const prevReal = realIdx.length>1 ? realIdx[realIdx.length-2] : -1;
+    const g = (lastReal>=0 && prevReal>=0) ? growth(series[lastReal], series[prevReal]) : null;
+    const total = series[lastIdx];
+    const max = Math.max(...series.filter(v=>v!==null), 1);
+    const color = PLATFORM_COLORS[platform];
+    const nAcc = accs.filter(a=>sortedDates(a.id).length>0).length;
+
+    const cols = series.map((v,i)=>{
+      const has = v!==null;
+      const h = has ? Math.max(3, Math.round((v/max)*100)) : 0;
+      const carried = has && !real[i];
+      const cls = !has ? ' none' : carried ? ' carried' : (i===lastIdx ? '' : ' old');
+      const valTxt = !has ? '—' : formatCompact(v);
+      const tip = !has ? 'sem dado' : carried ? 'sem lançamento no mês; último valor: '+formatNumber(v) : formatNumber(v);
+      return `<div class="net-col" title="${monthLabels[i]}: ${tip}">
+        <div class="net-val${carried?' carried':''}">${valTxt}</div>
+        <div class="net-bar${cls}" style="height:${h}%"></div>
+      </div>`;
+    }).join('');
+
+    const varHtml = g
+      ? growthHtml(g)+' <span style="color:var(--muted2)">'+monthLabels[lastReal]+' vs. '+monthLabels[prevReal]+'</span>'
+      : '<span class="growth-none">sem mês anterior para comparar</span>';
+    const staleNote = (lastReal>=0 && lastReal<lastIdx)
+      ? '<div class="net-var" style="margin-top:-10px;color:var(--gold)">Sem lançamento em '+monthLabels[lastIdx]+' (valor de '+monthLabels[lastReal]+')</div>' : '';
+    const labs = monthLabels.map(l=>`<span>${l}</span>`).join('');
+
+    return `<div class="net-card" data-platform="${platform}" style="--net-color:${color}">
+      <div class="net-head"><span class="net-name">${platform}</span><span class="net-count">${nAcc} conta${nAcc===1?'':'s'}</span></div>
+      <div class="net-total">${total===null?'—':formatNumber(total)}</div>
+      <div class="net-var">${varHtml}</div>
+      ${staleNote}
+      <div class="net-bars">${cols}</div>
+      <div class="net-labels">${labs}</div>
+    </div>`;
+  }).join('');
+
+  return `
+    <div class="metric-toggle">
+      <button class="metric-btn${isSeg?' active':''}" onclick="setMonthlyMetric('seguidores')">Seguidores</button>
+      <button class="metric-btn${!isSeg?' active':''}" onclick="setMonthlyMetric('alcance')">Alcance</button>
+    </div>
+    <div class="card-title disp" style="margin-bottom:6px;">${metricLabel} por rede — soma das contas, mês a mês</div>
+    <div class="net-note">Cada rede tem sua própria escala. Quando uma conta ainda não tem dado no mês, vale o último valor lançado dela.</div>
+    <div class="net-grid">${cards}</div>
+    ${tableHtml}
+  `;
+}
+
+function mountMonthlyCharts(){ /* cartões em HTML/CSS, sem canvas */ }
+
+let monthlyMetric = 'seguidores';
+function setMonthlyMetric(m){ monthlyMetric = m; renderContent(); }
+window.setMonthlyMetric = setMonthlyMetric;
+
+function formatCompact(n){
+  if(n===null||n===undefined||isNaN(n)) return '—';
+  const abs = Math.abs(n);
+  if(abs>=1e6) return (n/1e6).toLocaleString('pt-BR',{maximumFractionDigits:1})+' mi';
+  if(abs>=1e3) return (n/1e3).toLocaleString('pt-BR',{maximumFractionDigits:1})+' mil';
+  return n.toLocaleString('pt-BR');
+}
+
+function entryHtml(){
+  const account = ACCOUNTS.find(a=>a.id===formState.account);
+  const dates = sortedDates(formState.account).slice().reverse();
+  const optGroups = PLATFORM_ORDER.map(p=>`
+    <optgroup label="${p}">
+      ${ACCOUNTS.filter(a=>a.platform===p).map(a=>`<option value="${a.id}" ${a.id===formState.account?'selected':''}>${a.label} (${a.handle})</option>`).join('')}
+    </optgroup>`).join('');
+
+  return `
+    <div class="card">
+      <div class="card-title disp">Lançar dado</div>
+      <div class="form-grid">
+        <div><div class="field-label">Conta</div><select id="fAccount" onchange="onAccountChange(this.value)">${optGroups}</select></div>
+        <div><div class="field-label">Data da coleta</div><input type="date" id="fDate" value="${formState.date}" onchange="formState.date=this.value"></div>
+        <div><div class="field-label">Seguidores</div><input type="number" id="fSeguidores" value="${formState.seguidores}" placeholder="ex: 15200" oninput="formState.seguidores=this.value; refreshSaveBtn();"></div>
+        <div><div class="field-label">Alcance</div><input type="number" id="fAlcance" value="${formState.alcance}" placeholder="ex: 82000" oninput="formState.alcance=this.value;"></div>
+      </div>
+      <button class="btn-save" id="saveBtn" onclick="saveEntry()">Salvar</button>
+      <span id="saveMsg"></span>
+    </div>
+    <div class="card">
+      <div class="card-title disp">Lançamento em lote</div>
+      <div style="font-size:13px; color:var(--muted); margin-bottom:10px;">
+        Uma linha por lançamento: <span class="mono">rede, handle, AAAA-MM-DD, seguidores, alcance</span><br>
+        Exemplo: <span class="mono">Instagram, @PORTALLUPA1, 2026-08-05, 157071, 28989743</span>
+      </div>
+      <textarea id="bulkText" rows="8" style="width:100%; background:#0F1319; border:1px solid var(--border); border-radius:8px; padding:10px 12px; color:var(--text); font-size:13px;" placeholder="Instagram, @PORTALLUPA1, 2026-08-05, 157071, 28989743
+Instagram, @LUPA1NOTICIAS, 2026-08-05, 73547, 25403661"></textarea>
+      <div style="margin-top:12px; display:flex; align-items:center; gap:12px;">
+        <button class="btn-save" onclick="bulkImport()">Importar lote</button>
+        <span id="bulkMsg" style="font-size:13px;"></span>
+      </div>
+    </div>
+    <div class="card" style="padding:0;">
+      <div class="hist-title disp">Histórico — ${account?.label} <span>${account?.handle}</span></div>
+      ${dates.length===0 ? `<div style="padding:24px; color:var(--muted); font-size:13px;">Nenhum lançamento para esta conta ainda.</div>` : `
+      <div class="table-scroll">
+      <table>
+        <thead><tr><th>Data</th><th class="right">Seguidores</th><th class="right">Alcance</th><th class="right">Ações</th></tr></thead>
+        <tbody>
+          ${dates.map(d=>{ const v = entries[formState.account][d]; return `
+            <tr>
+              <td>${formatDate(d)}</td>
+              <td class="right mono">${formatNumber(v.seguidores)}</td>
+              <td class="right mono">${formatNumber(v.alcance)}</td>
+              <td class="right"><button class="del-btn" onclick="deleteEntry('${formState.account}','${d}')">excluir</button></td>
+            </tr>`; }).join('')}
+        </tbody>
+      </table>
+      </div>`}
+    </div>
+  `;
+}
+function onAccountChange(val){ formState.account = val; renderContent(); }
+window.onAccountChange = onAccountChange;
+function refreshSaveBtn(){ /* botão sempre habilitado; validação ocorre no clique */ }
+window.refreshSaveBtn = refreshSaveBtn;
+
+async function saveEntry(){
+  const seguidoresVal = document.getElementById('fSeguidores').value;
+  const alcanceVal = document.getElementById('fAlcance').value;
+  const dateVal = document.getElementById('fDate').value;
+  const accountVal = document.getElementById('fAccount').value;
+  formState.seguidores = seguidoresVal;
+  formState.alcance = alcanceVal;
+  formState.date = dateVal;
+  formState.account = accountVal;
+
+  if(seguidoresVal === '' || seguidoresVal === null){
+    document.getElementById('saveMsg').innerHTML = '<span class="save-error">Preencha o número de seguidores antes de salvar</span>';
+    return;
+  }
+  const btn = document.getElementById('saveBtn');
+  btn.textContent = 'Salvando…'; btn.disabled = true;
+  if(!entries[formState.account]) entries[formState.account] = {};
+  entries[formState.account][formState.date] = {
+    seguidores: Number(formState.seguidores),
+    alcance: formState.alcance==='' ? null : Number(formState.alcance)
+  };
+  const ok = await persistAccount(formState.account);
+  document.getElementById('saveMsg').innerHTML = ok ? '' : '<span class="save-error">Erro ao salvar — tente novamente</span>';
+  formState.seguidores=''; formState.alcance='';
+  renderContent();
+}
+window.saveEntry = saveEntry;
+
+async function deleteEntry(accId, date){
+  if(entries[accId]) delete entries[accId][date];
+  await persistAccount(accId);
+  renderContent();
+}
+window.deleteEntry = deleteEntry;
+
+async function bulkImport(){
+  const raw = document.getElementById('bulkText').value;
+  const lines = raw.split('\n').map(l=>l.trim()).filter(Boolean);
+  let ok=0, fail=0;
+  const touchedAccounts = new Set();
+  lines.forEach(line=>{
+    const parts = line.split(',').map(p=>p.trim());
+    if(parts.length<4){ fail++; return; }
+    const [platform, handle, date, seguidoresStr, alcanceStr] = parts;
+    const found = ACCOUNTS.find(a=>
+      a.platform.toLowerCase() === platform.toLowerCase() &&
+      a.handle.replace('@','').toLowerCase() === handle.replace('@','').toLowerCase()
+    );
+    if(!found || !/^\d{4}-\d{2}-\d{2}$/.test(date) || seguidoresStr===undefined || seguidoresStr===''){ fail++; return; }
+    if(!entries[found.id]) entries[found.id] = {};
+    entries[found.id][date] = {
+      seguidores: Number(seguidoresStr),
+      alcance: (alcanceStr===undefined || alcanceStr==='') ? null : Number(alcanceStr)
+    };
+    touchedAccounts.add(found.id);
+    ok++;
+  });
+  let saved = true;
+  for(const accId of touchedAccounts){
+    const result = await persistAccount(accId);
+    if(!result) saved = false;
+  }
+  document.getElementById('bulkMsg').innerHTML = saved
+    ? `<span style="color:var(--green)">${ok} lançamento(s) importado(s)${fail? `, ${fail} linha(s) ignorada(s)`:''}</span>`
+    : `<span class="save-error">Erro ao salvar um ou mais registros</span>`;
+  renderContent();
+}
+window.bulkImport = bulkImport;
+
+async function gerarPDF(){
+  const btn = document.getElementById('pdfBtn');
+  const originalText = btn.textContent;
+  btn.textContent = 'Gerando…'; btn.disabled = true;
+
+  const savedTab = currentTab;
+  const savedMetric = monthlyMetric;
+  const LIGHT_FIX = { '#F2F0EA':'#555555', '#C7CDD6':'#7A8390' };
+
+  function recolorChartsForPrint(){
+    charts.forEach(ch=>{
+      try{
+        const sc = ch.options.scales || {};
+        Object.values(sc).forEach(ax=>{
+          if(ax.ticks) ax.ticks.color = '#161A21';
+          if(ax.grid && ax.grid.color) ax.grid.color = '#D3D7DD';
+        });
+        const lg = ch.options.plugins && ch.options.plugins.legend;
+        if(lg && lg.labels) lg.labels.color = '#161A21';
+        ch.data.datasets.forEach(ds=>{
+          if(Array.isArray(ds.backgroundColor)) ds.backgroundColor = ds.backgroundColor.map(c=>LIGHT_FIX[c]||c);
+        });
+        ch.update('none');
+      }catch(e){ console.warn('recolor', e); }
+    });
+  }
+
+  async function snapshot(tab, metric, hideTable){
+    if(metric) monthlyMetric = metric;
+    setTab(tab);
+    await new Promise(r => setTimeout(r, 350));
+    document.body.classList.add('pdf-export');
+    if(hideTable) document.body.classList.add('pdf-hide-table');
+    recolorChartsForPrint();
+    await new Promise(r => setTimeout(r, 120));
+    try{
+      return await html2canvas(document.getElementById('content'), { backgroundColor:'#FFFFFF', scale:2 });
+    }finally{
+      document.body.classList.remove('pdf-export','pdf-hide-table');
+    }
+  }
+
+  try{
+    const pages = [{ title:'Visão Geral', tab:'overview' }];
+    if(allMonthKeys().length > 0){
+      pages.push({ title:'Comparativo Mensal — Seguidores', tab:'monthly', metric:'seguidores' });
+      pages.push({ title:'Comparativo Mensal — Alcance', tab:'monthly', metric:'alcance', hideTable:true });
+    }
+
+    const { jsPDF } = window.jspdf;
+    const pageWidthMM = 210, marginX = 10, marginTop = 26, marginBottom = 10;
+    const imgWidth = pageWidthMM - marginX * 2;
+    const lu = computeLastUpdate();
+    let pdf = null;
+
+    for(let k=0; k<pages.length; k++){
+      const pg = pages[k];
+      const canvas = await snapshot(pg.tab, pg.metric, pg.hideTable);
+      const imgData = canvas.toDataURL('image/jpeg', 0.92);
+      const imgHeight = canvas.height * imgWidth / canvas.width;
+      const pageHeightMM = imgHeight + marginTop + marginBottom;
+      const orient = pageHeightMM > pageWidthMM ? 'p' : 'l';
+
+      if(!pdf) pdf = new jsPDF({ orientation:orient, unit:'mm', format:[pageWidthMM, pageHeightMM] });
+      else pdf.addPage([pageWidthMM, pageHeightMM], orient);
+
+      pdf.setFontSize(14); pdf.setTextColor(20,20,20);
+      pdf.text('Lupa1 · Monitoramento de Redes Sociais', marginX, 14);
+      pdf.setFontSize(10); pdf.setTextColor(60,60,60);
+      pdf.text(pg.title, marginX, 20);
+      pdf.setFontSize(9); pdf.setTextColor(100,100,100);
+      pdf.text(`Gerado em ${formatDate(todayISO())}${lu ? ` · última coleta: ${formatDate(lu)}` : ''}`, marginX, 24.5);
+      pdf.addImage(imgData, 'JPEG', marginX, marginTop, imgWidth, imgHeight, undefined, 'FAST');
+    }
+    pdf.save(`lupa1-monitoramento-${todayISO()}.pdf`);
+  }catch(e){
+    console.error(e);
+    alert('Erro ao gerar o PDF. Tente novamente.');
+  }
+  document.body.classList.remove('pdf-export','pdf-hide-table');
+  monthlyMetric = savedMetric;
+  setTab(savedTab);
+  btn.textContent = originalText; btn.disabled = false;
+}
+window.gerarPDF = gerarPDF;
+
+(async function init(){
+  await loadEntries();
+  renderTabs();
+  renderContent();
+})();
+</script>
+</body>
+</html>
