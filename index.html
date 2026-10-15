@@ -13,11 +13,12 @@ body{
   display:flex;align-items:center;justify-content:center;
   padding:24px;
 }
-.hub{width:100%;max-width:640px;text-align:center}
+.hub{width:100%;max-width:900px;text-align:center}
 .hub-logo{font-size:38px;font-weight:800;color:#1e4a8a;letter-spacing:-1px;margin-bottom:6px}
 .hub-logo span{color:#4caf50}
 .hub-sub{font-size:13px;color:#7a90b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:40px}
-.cards{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.cards{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px}
+@media (max-width:760px){.cards{grid-template-columns:1fr 1fr}}
 @media (max-width:520px){.cards{grid-template-columns:1fr}}
 .card{
   background:#fff;border:1px solid #c8d8f0;border-radius:16px;
@@ -53,6 +54,13 @@ body{
       </div>
       <div class="card-title">Painel de Licitações</div>
       <div class="card-sub">OBR · Processos e etapas por cliente</div>
+    </a>
+    <a class="card" href="lupa1-social-dashboard.html">
+      <div class="card-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+      </div>
+      <div class="card-title">Redes Sociais</div>
+      <div class="card-sub">Seguidores e alcance por conta, mês a mês</div>
     </a>
   </div>
 </div>
