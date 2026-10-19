@@ -2866,14 +2866,14 @@ function mesesFaltantesCliente(c){
 }
 
 // Cria em lote os lançamentos em aberto. itens = [{c, meses:[...]}]
-async function criarLancamentosEmAberto(itens){
+async function criarLancamentosEmAberto(itens, idFixo){
   let total = 0;
   let batch = writeBatch(db);
   let ops = 0;
   for(const {c, meses} of itens){
     const dia = String(c.diaPagar).padStart(2,'0');
     for(const m of meses){
-      batch.set(doc(db,'lancamentos',uid()),{
+      batch.set(doc(db,'lancamentos', idFixo ? `auto_${c.id}_${m}` : uid()),{
         clienteId:c.id, mes:m, vencimento:`${m}-${dia}`, valor:Number(c.valor),
         formaPagamento:c.formaPagamento||'', obs:'', pago:false,
         dataRecebimento:null, valorRecebido:null, formaRecebimento:null, obsRecebimento:null
@@ -2948,9 +2948,8 @@ async function verificarMesAtual(){
   const faltam = clientes.filter(c=>c.valor && Number(c.valor)>0 && c.diaPagar && !jaTem.has(c.id) && contratoVigenteNoMes(c, mes));
   if(!faltam.length) return;
   const total = faltam.reduce((t,c)=>t+Number(c.valor||0),0);
-  if(!confirm(`Faltam os lançamentos de ${fmtMes(mes)} para ${faltam.length} cliente(s), somando ${fmtBRL(total)}.\n\nGerar agora? (Só este mês; meses anteriores não são criados.)`)) return;
-  const criados = await criarLancamentosEmAberto(faltam.map(c=>({c, meses:[mes]})));
-  toast(`${criados} lançamento(s) de ${fmtMes(mes)} gerado(s)`);
+  const criados = await criarLancamentosEmAberto(faltam.map(c=>({c, meses:[mes]})), true);
+  toast(`${criados} lançamento(s) de ${fmtMes(mes)} gerado(s) automaticamente — ${fmtBRL(total)}`);
 }
 
 // ─── GERAR LANÇAMENTOS RETROATIVOS (por cliente) ────────────────────────────
