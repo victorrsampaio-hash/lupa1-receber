@@ -965,6 +965,14 @@ textarea{resize:vertical;min-height:60px}
         <label>Valor mensal (R$)</label>
         <input type="number" id="mc-valor" step="0.01" min="0" placeholder="0,00">
       </div>
+      <div class="form-group">
+        <label>Situação do contrato</label>
+        <select id="mc-situacao">
+          <option value="ativo">Ativo</option>
+          <option value="suspenso">Suspenso</option>
+          <option value="encerrado">Encerrado</option>
+        </select>
+      </div>
       <div class="form-group full">
         <label>Observações</label>
         <textarea id="mc-obs" placeholder="Informações adicionais"></textarea>
@@ -2595,7 +2603,7 @@ function renderClientes(){
     <tbody>${lista.map(c=>{
       const ab = lancamentos.filter(l=>l.clienteId===c.id&&!l.pago).reduce((s,l)=>s+Number(l.valor||0),0);
       return `<tr>
-        <td class="td-name">${c.nome}</td>
+        <td class="td-name">${c.nome}${c.situacao==='suspenso'?' <span class="badge badge-amber">Suspenso</span>':c.situacao==='encerrado'?' <span class="badge badge-red">Encerrado</span>':''}</td>
         <td>${chipCategoria(c.categoria)}</td>
         <td>${c.diaPagar?'Dia '+c.diaPagar:'—'}</td>
         <td>${c.diaNF?'Dia '+c.diaNF:'—'}</td>
@@ -2726,6 +2734,7 @@ window.openModalCliente = function(){
   document.getElementById('mc-cargo').value='';
   document.getElementById('mc-tempo').value='';
   document.getElementById('mc-forma').value='';
+  document.getElementById('mc-situacao').value='ativo';
   document.getElementById('mc-btn-retroativos').style.display='none';
   window.toggleCargoPolitico();
   document.getElementById('modal-cli').classList.add('open');
@@ -2746,6 +2755,7 @@ window.editCliente = function(id){
   document.getElementById('mc-forma').value=c.formaPagamento||'';
   document.getElementById('mc-valor').value=c.valor||'';
   document.getElementById('mc-obs').value=c.obs||'';
+  document.getElementById('mc-situacao').value=c.situacao||'ativo';
   document.getElementById('mc-btn-retroativos').style.display = (c.mesInicio && c.diaPagar && c.valor) ? 'inline-flex' : 'none';
   window.toggleCargoPolitico();
   document.getElementById('modal-cli').classList.add('open');
@@ -2765,10 +2775,23 @@ window.salvarCliente = async function(){
     diaPagar:document.getElementById('mc-diaPagar').value,
     formaPagamento:document.getElementById('mc-forma').value,
     valor:document.getElementById('mc-valor').value,
-    obs:document.getElementById('mc-obs').value
+    obs:document.getElementById('mc-obs').value,
+    situacao:document.getElementById('mc-situacao').value
   };
   const novo = !editCliId;
-  await salvarClienteDB(id, dados);
+  // preserva campos que o formulário não edita (ex.: parceiro)
+  const antigo = clientes.find(x=>x.id===id);
+  const dadosFinal = antigo ? { ...(({id:_i, ...resto})=>resto)(antigo), ...dados } : dados;
+  await salvarClienteDB(id, dadosFinal);
+  // Suspenso/encerrado: oferece remover lançamentos pendentes que ainda não venceram
+  if(dados.situacao!=='ativo'){
+    const futuros = lancamentos.filter(l=>l.clienteId===id && !l.pago && diasAtraso(l.vencimento)<=0);
+    if(futuros.length && confirm(`${nome} está ${dados.situacao}.\n\nRemover ${futuros.length} lançamento(s) pendente(s) que ainda não venceram? (Parcelas já vencidas e pagamentos com baixa não são afetados.)`)){
+      const b = writeBatch(db);
+      futuros.forEach(l=>b.delete(doc(db,'lancamentos',l.id)));
+      await b.commit();
+    }
+  }
   // Contrato retroativo: já gera os meses em aberto (início até hoje) automaticamente
   let extra = '';
   try{
@@ -2846,6 +2869,7 @@ window.excluirCliente = async function(id){
 // ─── LANÇAMENTOS EM ABERTO AUTOMÁTICOS (contrato retroativo) ────────────────
 // Meses (YYYY-MM) do início do contrato até o mês atual que ainda não têm lançamento
 function mesesFaltantesCliente(c){
+  if(c && (c.situacao==='suspenso' || c.situacao==='encerrado')) return [];
   if(!c || !c.mesInicio || !c.diaPagar || !c.valor || Number(c.valor)<=0) return [];
   const [anoIni, mesIni] = c.mesInicio.split('-').map(Number);
   if(!anoIni || !mesIni) return [];
@@ -2887,32 +2911,32 @@ async function criarLancamentosEmAberto(itens, idFixo){
 }
 
 
-// ─── LIMPEZA: lançamentos gerados por engano em 19/10/2026 ─────────────────
-const IDS_GERADOS_POR_ENGANO = new Set(['mvfjpwshlapw','mvfjpwsi0x04','mvfjpwsi2yzv','mvfjpwsi3vht','mvfjpwsi4494','mvfjpwsi4rvj','mvfjpwsi7i4l','mvfjpwsi960g','mvfjpwsibohk','mvfjpwsie5mr','mvfjpwsiej75','mvfjpwsierwp','mvfjpwsihj91','mvfjpwsihjav','mvfjpwsihqi2','mvfjpwsiinur','mvfjpwsij147','mvfjpwsijl77','mvfjpwsikl79','mvfjpwsikw5g','mvfjpwsilcgx','mvfjpwsilylm','mvfjpwsinnkp','mvfjpwsir5ju','mvfjpwsirf2s','mvfjpwsisqs4','mvfjpwsiu3kv','mvfjpwsiverp','mvfjpwsiwgo1','mvfjpwsiwmiz','mvfjpwsj1eti','mvfjpwsj2c7b','mvfjpwsj2ngf','mvfjpwsj3dyj','mvfjpwsj3yk0','mvfjpwsj4fq3','mvfjpwsj7dxg','mvfjpwsj8045','mvfjpwsjcj21','mvfjpwsjcmi4','mvfjpwsjcusc','mvfjpwsjdpyy','mvfjpwsjdq16','mvfjpwsjdzbm','mvfjpwsje7ko','mvfjpwsjehhf','mvfjpwsjf9m8','mvfjpwsjfhqp','mvfjpwsji63m','mvfjpwsjizak','mvfjpwsjja1s','mvfjpwsjjn0x','mvfjpwsjliys','mvfjpwsjmbyd','mvfjpwsjmr3z','mvfjpwsjmr9z','mvfjpwsjmy8y','mvfjpwsjmyz0','mvfjpwsjq55z','mvfjpwsjr257','mvfjpwsjrolx','mvfjpwsjtslc','mvfjpwsjun23','mvfjpwsjut3a','mvfjpwsjvn3f','mvfjpwsjwdro','mvfjpwsjxbbf','mvfjpwsjy35e','mvfjpwsjz9n4','mvfjpwsjzqt4','mvfjpwsjztg6','mvfjpwsk03ic','mvfjpwsk0czc','mvfjpwsk0f4d','mvfjpwsk0opa','mvfjpwsk0wfv','mvfjpwsk13kb','mvfjpwsk1bvk','mvfjpwsk1dsd','mvfjpwsk2a63','mvfjpwsk2pe9','mvfjpwsk2v03','mvfjpwsk3ryx','mvfjpwsk46ny','mvfjpwsk4739','mvfjpwsk5for','mvfjpwsk69xi','mvfjpwsk6vl3','mvfjpwsk6z0z','mvfjpwsk77f2','mvfjpwsk7h54','mvfjpwsk7tdi','mvfjpwsk9rhj','mvfjpwskacb4','mvfjpwskah22','mvfjpwskaj3g','mvfjpwskas0b','mvfjpwskberr','mvfjpwskciso','mvfjpwskeg26','mvfjpwskepe2','mvfjpwskf8y3','mvfjpwskfciq','mvfjpwskg6j1','mvfjpwskgb4z','mvfjpwskhcl6','mvfjpwskhkrn','mvfjpwskisz4','mvfjpwskizxf','mvfjpwskj75z','mvfjpwskmodh','mvfjpwskmu5m','mvfjpwsknn5v','mvfjpwsknqoy','mvfjpwsko2rj','mvfjpwskotmf','mvfjpwskox6d','mvfjpwskpc5s','mvfjpwskpktu','mvfjpwskpnfd','mvfjpwskpugb','mvfjpwskq05j','mvfjpwskrscq','mvfjpwskt5q5','mvfjpwsktebo','mvfjpwsktf0x','mvfjpwskuesz','mvfjpwskugty','mvfjpwskur19','mvfjpwskv5ho','mvfjpwskvre5','mvfjpwskvyme','mvfjpwskxh68','mvfjpwskxu6l','mvfjpwskxwb9','mvfjpwskyhnr','mvfjpwskz4a7','mvfjpwskzbuk','mvfjpwskzyq2','mvfjpwsl0mb1','mvfjpwsl0uvr','mvfjpwsl0x35','mvfjpwsl1rpn','mvfjpwsl1vjc','mvfjpwsl28wu','mvfjpwsl2p3t','mvfjpwsl6r72','mvfjpwsl7axk','mvfjpwsl8049','mvfjpwsl86dp','mvfjpwsl8ii6','mvfjpwslb84s','mvfjpwslbr76','mvfjpwslc09w','mvfjpwslcd0p','mvfjpwsld58g','mvfjpwsld8o4','mvfjpwslgdlm','mvfjpwslhv04','mvfjpwslhvd4','mvfjpwslk9nc','mvfjpwslkgra','mvfjpwslmezg','mvfjpwslozyy','mvfjpwslprx8','mvfjpwslqtzy','mvfjpwsls7kk','mvfjpwslse6m','mvfjpwslsv1a','mvfjpwslszap','mvfjpwslum4z','mvfjpwsluxa8','mvfjpwslz1x9']);
-
-function lancamentosPorEngano(){
-  return lancamentos.filter(l=>IDS_GERADOS_POR_ENGANO.has(l.id) && !l.pago);
+// ─── LIMPEZA: lançamentos futuros de clientes suspensos/encerrados ──────────
+function lancamentosDeSuspensos(){
+  const inativos = new Set(clientes.filter(c=>c.situacao==='suspenso'||c.situacao==='encerrado').map(c=>c.id));
+  return lancamentos.filter(l=>inativos.has(l.clienteId) && !l.pago && diasAtraso(l.vencimento)<=0);
 }
 
 function atualizarBannerLimpeza(){
   let b = document.getElementById('banner-limpeza');
-  const qtd = modoAdmin ? lancamentosPorEngano().length : 0;
-  if(!qtd){ if(b) b.remove(); return; }
+  const lista = modoAdmin ? lancamentosDeSuspensos() : [];
+  if(!lista.length){ if(b) b.remove(); return; }
+  const nomes = [...new Set(lista.map(l=>nomeCliente(l.clienteId)))].join(', ');
   if(!b){
     b = document.createElement('div');
     b.id = 'banner-limpeza';
     b.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:400;background:#fff3cd;border:1px solid #e0b84c;border-radius:12px;padding:14px 16px;box-shadow:0 6px 20px rgba(0,0,0,.2);display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;font-size:14px;color:#5a4500';
     document.body.appendChild(b);
   }
-  b.innerHTML = `<span><b>${qtd} lançamentos pendentes foram criados por engano</b> (meses antigos de contratos). Nenhum pagamento com baixa será afetado.</span>
-    <button class="btn btn-primary" onclick="window.limparGeradosPorEngano()">Remover os ${qtd} lançamentos</button>`;
+  b.innerHTML = `<span><b>${lista.length} lançamento(s) pendente(s) a vencer de clientes suspensos/encerrados</b> (${nomes}). Parcelas já vencidas e pagamentos com baixa não são afetados.</span>
+    <button class="btn btn-primary" onclick="window.limparLancamentosSuspensos()">Remover ${lista.length} lançamento(s)</button>`;
 }
 
-window.limparGeradosPorEngano = async function(){
+window.limparLancamentosSuspensos = async function(){
   if(!requerAdmin()) return;
-  const lista = lancamentosPorEngano();
+  const lista = lancamentosDeSuspensos();
   if(!lista.length){ toast('Nada para remover'); return; }
-  if(!confirm(`Remover ${lista.length} lançamentos pendentes criados por engano?\n\nPagamentos com baixa não são afetados.`)) return;
+  if(!confirm(`Remover ${lista.length} lançamento(s) pendente(s) a vencer de clientes suspensos/encerrados?`)) return;
   let batch = writeBatch(db), ops = 0;
   for(const l of lista){
     batch.delete(doc(db,'lancamentos',l.id));
@@ -2920,13 +2944,14 @@ window.limparGeradosPorEngano = async function(){
     if(ops>=400){ await batch.commit(); batch = writeBatch(db); ops=0; }
   }
   if(ops>0) await batch.commit();
-  toast(`${lista.length} lançamentos removidos`);
+  toast(`${lista.length} lançamento(s) removido(s)`);
 };
 
 // ─── MÊS ATUAL AUTOMÁTICO ────────────────────────────────────────────────────
 // Cliente ativo em um mês (YYYY-MM): contrato dentro do prazo OU já renovado na prática
 // (tem lançamento recente posterior ao fim do contrato previsto)
 function contratoVigenteNoMes(c, mes){
+  if(c.situacao==='suspenso' || c.situacao==='encerrado') return false;
   if(!c.mesInicio) return true;               // sem data de início: considera contínuo
   if(mes < c.mesInicio) return false;         // ainda não começou
   if(!c.tempoContrato) return true;           // sem duração: contínuo
@@ -3007,7 +3032,7 @@ window.gerarMesAtual = async function(){
   const mes=mesAtual();
   const [ano,m]=mes.split('-').map(Number);
   const jaExistem=lancamentos.filter(l=>l.mes===mes).map(l=>l.clienteId);
-  const pendentes=clientes.filter(c=>!jaExistem.includes(c.id)&&c.valor&&Number(c.valor)>0&&c.diaPagar);
+  const pendentes=clientes.filter(c=>!jaExistem.includes(c.id)&&c.valor&&Number(c.valor)>0&&c.diaPagar&&c.situacao!=='suspenso'&&c.situacao!=='encerrado');
   if(!pendentes.length){toast('Todos os clientes com valor já têm lançamento neste mês');return;}
   if(!confirm(`Gerar ${pendentes.length} lançamentos para ${fmtMes(mes)}?`)) return;
   const batch=writeBatch(db);
