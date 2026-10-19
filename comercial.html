@@ -466,15 +466,11 @@ textarea{resize:vertical;min-height:60px}
   <div class="alertas-grid">
     <div class="alertas-col-main">
       <div class="card">
-        <div class="card-head"><span class="card-title" id="a-vencer-titulo">A vencer neste mês</span><span id="a-vencer-total" class="badge badge-blue"></span></div>
-        <div class="card-body" id="painel-a-vencer"></div>
-      </div>
-      <div class="card">
-        <div class="card-head"><span class="card-title">Vencidos e próximos vencimentos</span></div>
+        <div class="card-head"><span class="card-title">Vencidos</span></div>
         <div class="card-body" id="painel-alertas-semana"></div>
       </div>
       <div class="card">
-        <div class="card-head"><span class="card-title">Em aberto — por dia de vencimento</span></div>
+        <div class="card-head"><span class="card-title">Próximos vencimentos</span><span id="proximos-total" class="badge badge-blue"></span></div>
         <div class="card-body" id="painel-por-dia"></div>
       </div>
     </div>
@@ -1434,16 +1430,14 @@ function renderPainel(){
 
   const buscaPainel = (document.getElementById('f-busca-painel')?.value||'').toLowerCase();
 
-  const proximos7 = abertos.filter(l=>{const d=diasAtraso(l.vencimento);return d<0&&d>=-7;});
   const semanaEl = document.getElementById('painel-alertas-semana');
   if(semanaEl){
     let lista = [
       ...vencidos.sort((a,b)=>b.vencimento.localeCompare(a.vencimento)),
-      ...hjLanc,
-      ...proximos7.sort((a,b)=>a.vencimento.localeCompare(b.vencimento))
+      ...hjLanc
     ];
     if(buscaPainel) lista = lista.filter(l=>nomeCliente(l.clienteId).toLowerCase().includes(buscaPainel));
-    if(!lista.length){ semanaEl.innerHTML='<div class="empty">Nenhum vencimento pendente</div>'; }
+    if(!lista.length){ semanaEl.innerHTML='<div class="empty">Nenhum vencido</div>'; }
     else {
       semanaEl.innerHTML = lista.map(l=>{
         const d=diasAtraso(l.vencimento);
@@ -1461,65 +1455,34 @@ function renderPainel(){
     }
   }
 
-  // A vencer no mês selecionado: ainda não vencidos (de hoje em diante), em ordem de data
-  const aVencerEl = document.getElementById('painel-a-vencer');
-  if(aVencerEl){
-    let aVencer = abertos.filter(l=>(l.vencimento||'').slice(0,7)===mc && diasAtraso(l.vencimento)<=0)
-      .sort((a,b)=>a.vencimento.localeCompare(b.vencimento) || nomeCliente(a.clienteId).localeCompare(nomeCliente(b.clienteId),'pt-BR'));
-    if(buscaPainel) aVencer = aVencer.filter(l=>nomeCliente(l.clienteId).toLowerCase().includes(buscaPainel));
-    const tit = document.getElementById('a-vencer-titulo');
-    if(tit) tit.textContent = `A vencer — ${fmtMes(mc)}`;
-    const totEl = document.getElementById('a-vencer-total');
-    if(totEl) totEl.textContent = `${aVencer.length} · ${fmtBRL(aVencer.reduce((t,l)=>t+Number(l.valor||0),0))}`;
-    if(!aVencer.length){ aVencerEl.innerHTML = '<div class="empty">Nada a vencer neste mês</div>'; }
-    else {
-      let diaAnterior = '';
-      aVencerEl.innerHTML = aVencer.map(l=>{
-        const d = diasAtraso(l.vencimento);
-        const cls = d===0 ? 'amber' : 'blue';
-        const label = d===0 ? 'Hoje' : `em ${-d}d`;
-        const cab = l.vencimento!==diaAnterior
-          ? `<div class="venc-group-head" style="margin-top:6px"><span>${fmtData(l.vencimento)}</span></div>` : '';
-        diaAnterior = l.vencimento;
-        return `${cab}<div class="alert-item ${cls}">
-          <div><div class="alert-name">${nomeCliente(l.clienteId)}</div>
-          <div class="alert-meta">Ref. ${fmtMes(l.mes)} ${l.formaPagamento?'· '+l.formaPagamento:''}</div></div>
-          <div class="alert-right">
-            <div><div class="alert-val">${fmtBRL(l.valor)}</div><div style="margin-top:4px"><span class="badge badge-${cls}">${label}</span></div></div>
-            <button class="btn btn-sm btn-primary" onclick="openBaixa('${l.id}')">Baixa</button>
-          </div>
-        </div>`;
-      }).join('');
-    }
-  }
-
-  const dias = ['01','10','19','20','21','22','25','30'];
+  // Próximos vencimentos: em aberto, de amanhã em diante, agrupados pela data de vencimento
   const divEl = document.getElementById('painel-por-dia');
   if(!divEl) return;
+  let futuros = abertos.filter(l=>diasAtraso(l.vencimento)<0);
+  if(buscaPainel) futuros = futuros.filter(l=>nomeCliente(l.clienteId).toLowerCase().includes(buscaPainel));
+  futuros.sort((a,b)=>a.vencimento.localeCompare(b.vencimento) || nomeCliente(a.clienteId).localeCompare(nomeCliente(b.clienteId),'pt-BR'));
+  const grupos = {};
+  futuros.forEach(l=>{ (grupos[l.vencimento] = grupos[l.vencimento] || []).push(l); });
+  const totEl = document.getElementById('proximos-total');
+  if(totEl) totEl.textContent = futuros.length ? `${futuros.length} · ${fmtBRL(futuros.reduce((t,l)=>t+Number(l.valor||0),0))}` : '';
   let html = '';
-  dias.forEach(dia=>{
-    const ids = clientes.filter(c=>String(c.diaPagar).padStart(2,'0')===dia||c.diaPagar===String(parseInt(dia))).map(c=>c.id);
-    let abDia = abertos.filter(l=>ids.includes(l.clienteId));
-    if(buscaPainel) abDia = abDia.filter(l=>nomeCliente(l.clienteId).toLowerCase().includes(buscaPainel));
-    const total = abDia.reduce((s,l)=>s+Number(l.valor||0),0);
-    if(!abDia.length) return;
+  Object.keys(grupos).sort().forEach(data=>{
+    const itens = grupos[data];
+    const total = itens.reduce((t,l)=>t+Number(l.valor||0),0);
+    const dd = -diasAtraso(data);
     html += `<div class="venc-group">
-      <div class="venc-group-head"><span>Dia ${dia}</span><span>${fmtBRL(total)} em aberto · ${abDia.length} parcelas</span></div>
-      ${abDia.map(l=>{
-        const d=diasAtraso(l.vencimento);
-        const cls=d>0?'badge-red':d===0?'badge-amber':'badge-blue';
-        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 4px;border-bottom:1px solid var(--border)">
+      <div class="venc-group-head"><span>${fmtData(data)} · em ${dd} dia${dd>1?'s':''}</span><span>${fmtBRL(total)} · ${itens.length} parcela${itens.length>1?'s':''}</span></div>
+      ${itens.map(l=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 4px;border-bottom:1px solid var(--border)">
           <span style="font-size:13px;font-weight:500">${nomeCliente(l.clienteId)}</span>
           <div style="display:flex;align-items:center;gap:10px">
             <span style="font-size:13px">${fmtBRL(l.valor)}</span>
-            <span class="badge ${cls}">${d>0?d+'d atraso':d===0?'hoje':'em '+(-d)+'d'}</span>
+            <span style="font-size:11px;color:var(--text3)">Ref. ${fmtMes(l.mes)}</span>
             <button class="btn btn-sm" onclick="openBaixa('${l.id}')">Baixa</button>
           </div>
-        </div>`;
-      }).join('')}
+        </div>`).join('')}
     </div>`;
   });
-  divEl.innerHTML = html || '<div class="empty">Nenhum lançamento em aberto</div>';
+  divEl.innerHTML = html || '<div class="empty">Nenhum vencimento futuro em aberto</div>';
 
   renderPagosMes(buscaPainel, 'cnt-pagos-mes-painel', 'lista-pagos-mes-painel');
 }
