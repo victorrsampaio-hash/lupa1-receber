@@ -362,7 +362,7 @@ textarea{resize:vertical;min-height:60px}
 </nav>
 
 <!-- TELA DE LOGIN -->
-<div class="login-overlay hide" id="login-overlay">
+<div class="login-overlay" id="login-overlay">
   <div class="login-box">
     <div class="login-logo">Lupa<span>1</span></div>
     <div class="login-sub">Contas a Receber</div>
@@ -1303,16 +1303,12 @@ function iniciarListeners(){
     setSyncStatus('ok','Sincronizado');
     renderAll();
     if(document.getElementById("tab-mapa")?.classList.contains("active")) renderMapa();
-    _cliCarregou = true;
-    setTimeout(verificarLancamentosPendentes, 600);
   }, ()=>setSyncStatus('err','Erro de conexão'));
 
   onSnapshot(collection(db,'lancamentos'), snap=>{
     lancamentos = snap.docs.map(d=>({id:d.id,...d.data()}));
     setSyncStatus('ok','Sincronizado');
     renderAll();
-    _lancCarregou = true;
-    setTimeout(verificarLancamentosPendentes, 600);
   }, ()=>setSyncStatus('err','Erro de conexão'));
 
   onSnapshot(collection(db,'parceirosPoliticos'), snap=>{
@@ -1370,6 +1366,7 @@ window.goTab = function(t, el){
 };
 
 function renderAll(){
+  atualizarBannerLimpeza();
   populateSelects();
   renderPainel();
   renderAlertas();
@@ -2772,7 +2769,7 @@ window.salvarCliente = async function(){
   // Contrato retroativo: já gera os meses em aberto (início até hoje) automaticamente
   let extra = '';
   try{
-    const faltam = mesesFaltantesCliente({id, ...dados});
+    const faltam = novo ? mesesFaltantesCliente({id, ...dados}) : [];
     if(faltam.length){
       const criados = await criarLancamentosEmAberto([{c:{id, ...dados}, meses:faltam}]);
       extra = ` — ${criados} lançamento(s) em aberto gerado(s)`;
@@ -2886,21 +2883,42 @@ async function criarLancamentosEmAberto(itens){
   return total;
 }
 
-// Ao abrir o sistema (admin): clientes já cadastrados com meses em aberto sem lançamento
-let _syncPendentesFeito = false, _cliCarregou = false, _lancCarregou = false;
-async function verificarLancamentosPendentes(){
-  if(_syncPendentesFeito || !modoAdmin || !_cliCarregou || !_lancCarregou) return;
-  _syncPendentesFeito = true;
-  const itens = clientes
-    .map(c=>({c, meses:mesesFaltantesCliente(c)}))
-    .filter(x=>x.meses.length);
-  if(!itens.length) return;
-  const total = itens.reduce((s,x)=>s+x.meses.length,0);
-  const resumo = itens.map(x=>`• ${x.c.nome}: ${x.meses.length} mês(es) (${fmtMes(x.meses[0])} a ${fmtMes(x.meses[x.meses.length-1])})`).join('\n');
-  if(!confirm(`Encontrei ${total} lançamento(s) em aberto que ainda não existem no sistema, de contratos já iniciados:\n\n${resumo}\n\nGerar agora? (Eles aparecerão como pendentes/vencidos até você dar baixa.)\n\nCancelar = não gerar agora (você pode gerar por cliente no cadastro dele).`)) return;
-  const criados = await criarLancamentosEmAberto(itens);
-  toast(`${criados} lançamento(s) em aberto gerado(s)`);
+
+// ─── LIMPEZA: lançamentos gerados por engano em 19/10/2026 ─────────────────
+const IDS_GERADOS_POR_ENGANO = new Set(['mvfjpwshlapw','mvfjpwsi0x04','mvfjpwsi2yzv','mvfjpwsi3vht','mvfjpwsi4494','mvfjpwsi4rvj','mvfjpwsi7i4l','mvfjpwsi960g','mvfjpwsibohk','mvfjpwsie5mr','mvfjpwsiej75','mvfjpwsierwp','mvfjpwsihj91','mvfjpwsihjav','mvfjpwsihqi2','mvfjpwsiinur','mvfjpwsij147','mvfjpwsijl77','mvfjpwsikl79','mvfjpwsikw5g','mvfjpwsilcgx','mvfjpwsilylm','mvfjpwsinnkp','mvfjpwsir5ju','mvfjpwsirf2s','mvfjpwsisqs4','mvfjpwsiu3kv','mvfjpwsiverp','mvfjpwsiwgo1','mvfjpwsiwmiz','mvfjpwsj1eti','mvfjpwsj2c7b','mvfjpwsj2ngf','mvfjpwsj3dyj','mvfjpwsj3yk0','mvfjpwsj4fq3','mvfjpwsj7dxg','mvfjpwsj8045','mvfjpwsjcj21','mvfjpwsjcmi4','mvfjpwsjcusc','mvfjpwsjdpyy','mvfjpwsjdq16','mvfjpwsjdzbm','mvfjpwsje7ko','mvfjpwsjehhf','mvfjpwsjf9m8','mvfjpwsjfhqp','mvfjpwsji63m','mvfjpwsjizak','mvfjpwsjja1s','mvfjpwsjjn0x','mvfjpwsjliys','mvfjpwsjmbyd','mvfjpwsjmr3z','mvfjpwsjmr9z','mvfjpwsjmy8y','mvfjpwsjmyz0','mvfjpwsjq55z','mvfjpwsjr257','mvfjpwsjrolx','mvfjpwsjtslc','mvfjpwsjun23','mvfjpwsjut3a','mvfjpwsjvn3f','mvfjpwsjwdro','mvfjpwsjxbbf','mvfjpwsjy35e','mvfjpwsjz9n4','mvfjpwsjzqt4','mvfjpwsjztg6','mvfjpwsk03ic','mvfjpwsk0czc','mvfjpwsk0f4d','mvfjpwsk0opa','mvfjpwsk0wfv','mvfjpwsk13kb','mvfjpwsk1bvk','mvfjpwsk1dsd','mvfjpwsk2a63','mvfjpwsk2pe9','mvfjpwsk2v03','mvfjpwsk3ryx','mvfjpwsk46ny','mvfjpwsk4739','mvfjpwsk5for','mvfjpwsk69xi','mvfjpwsk6vl3','mvfjpwsk6z0z','mvfjpwsk77f2','mvfjpwsk7h54','mvfjpwsk7tdi','mvfjpwsk9rhj','mvfjpwskacb4','mvfjpwskah22','mvfjpwskaj3g','mvfjpwskas0b','mvfjpwskberr','mvfjpwskciso','mvfjpwskeg26','mvfjpwskepe2','mvfjpwskf8y3','mvfjpwskfciq','mvfjpwskg6j1','mvfjpwskgb4z','mvfjpwskhcl6','mvfjpwskhkrn','mvfjpwskisz4','mvfjpwskizxf','mvfjpwskj75z','mvfjpwskmodh','mvfjpwskmu5m','mvfjpwsknn5v','mvfjpwsknqoy','mvfjpwsko2rj','mvfjpwskotmf','mvfjpwskox6d','mvfjpwskpc5s','mvfjpwskpktu','mvfjpwskpnfd','mvfjpwskpugb','mvfjpwskq05j','mvfjpwskrscq','mvfjpwskt5q5','mvfjpwsktebo','mvfjpwsktf0x','mvfjpwskuesz','mvfjpwskugty','mvfjpwskur19','mvfjpwskv5ho','mvfjpwskvre5','mvfjpwskvyme','mvfjpwskxh68','mvfjpwskxu6l','mvfjpwskxwb9','mvfjpwskyhnr','mvfjpwskz4a7','mvfjpwskzbuk','mvfjpwskzyq2','mvfjpwsl0mb1','mvfjpwsl0uvr','mvfjpwsl0x35','mvfjpwsl1rpn','mvfjpwsl1vjc','mvfjpwsl28wu','mvfjpwsl2p3t','mvfjpwsl6r72','mvfjpwsl7axk','mvfjpwsl8049','mvfjpwsl86dp','mvfjpwsl8ii6','mvfjpwslb84s','mvfjpwslbr76','mvfjpwslc09w','mvfjpwslcd0p','mvfjpwsld58g','mvfjpwsld8o4','mvfjpwslgdlm','mvfjpwslhv04','mvfjpwslhvd4','mvfjpwslk9nc','mvfjpwslkgra','mvfjpwslmezg','mvfjpwslozyy','mvfjpwslprx8','mvfjpwslqtzy','mvfjpwsls7kk','mvfjpwslse6m','mvfjpwslsv1a','mvfjpwslszap','mvfjpwslum4z','mvfjpwsluxa8','mvfjpwslz1x9']);
+
+function lancamentosPorEngano(){
+  return lancamentos.filter(l=>IDS_GERADOS_POR_ENGANO.has(l.id) && !l.pago);
 }
+
+function atualizarBannerLimpeza(){
+  let b = document.getElementById('banner-limpeza');
+  const qtd = modoAdmin ? lancamentosPorEngano().length : 0;
+  if(!qtd){ if(b) b.remove(); return; }
+  if(!b){
+    b = document.createElement('div');
+    b.id = 'banner-limpeza';
+    b.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:400;background:#fff3cd;border:1px solid #e0b84c;border-radius:12px;padding:14px 16px;box-shadow:0 6px 20px rgba(0,0,0,.2);display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;font-size:14px;color:#5a4500';
+    document.body.appendChild(b);
+  }
+  b.innerHTML = `<span><b>${qtd} lançamentos pendentes foram criados por engano</b> (meses antigos de contratos). Nenhum pagamento com baixa será afetado.</span>
+    <button class="btn btn-primary" onclick="window.limparGeradosPorEngano()">Remover os ${qtd} lançamentos</button>`;
+}
+
+window.limparGeradosPorEngano = async function(){
+  if(!requerAdmin()) return;
+  const lista = lancamentosPorEngano();
+  if(!lista.length){ toast('Nada para remover'); return; }
+  if(!confirm(`Remover ${lista.length} lançamentos pendentes criados por engano?\n\nPagamentos com baixa não são afetados.`)) return;
+  let batch = writeBatch(db), ops = 0;
+  for(const l of lista){
+    batch.delete(doc(db,'lancamentos',l.id));
+    ops++;
+    if(ops>=400){ await batch.commit(); batch = writeBatch(db); ops=0; }
+  }
+  if(ops>0) await batch.commit();
+  toast(`${lista.length} lançamentos removidos`);
+};
 
 // ─── GERAR LANÇAMENTOS RETROATIVOS (por cliente) ────────────────────────────
 window.gerarLancamentosRetroativos = async function(){
@@ -3110,9 +3128,6 @@ window.excluirCliente = async function(id){ if(!requerAdmin()) return; await _ex
 const _gerarMesAtual = window.gerarMesAtual;
 window.gerarMesAtual = async function(){ if(!requerAdmin()) return; await _gerarMesAtual(); };
 
-// Acesso direto, sem tela de senha: entra automaticamente como administrador
-document.getElementById('login-input-senha').value = SENHA_ADMIN;
-window.confirmarSenha();
 </script>
 </body>
 </html>
