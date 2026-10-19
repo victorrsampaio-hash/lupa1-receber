@@ -1303,12 +1303,16 @@ function iniciarListeners(){
     setSyncStatus('ok','Sincronizado');
     renderAll();
     if(document.getElementById("tab-mapa")?.classList.contains("active")) renderMapa();
+    _cliCarregou = true;
+    setTimeout(verificarLancamentosPendentes, 600);
   }, ()=>setSyncStatus('err','Erro de conexão'));
 
   onSnapshot(collection(db,'lancamentos'), snap=>{
     lancamentos = snap.docs.map(d=>({id:d.id,...d.data()}));
     setSyncStatus('ok','Sincronizado');
     renderAll();
+    _lancCarregou = true;
+    setTimeout(verificarLancamentosPendentes, 600);
   }, ()=>setSyncStatus('err','Erro de conexão'));
 
   onSnapshot(collection(db,'parceirosPoliticos'), snap=>{
@@ -2763,9 +2767,19 @@ window.salvarCliente = async function(){
     valor:document.getElementById('mc-valor').value,
     obs:document.getElementById('mc-obs').value
   };
+  const novo = !editCliId;
   await salvarClienteDB(id, dados);
+  // Contrato retroativo: já gera os meses em aberto (início até hoje) automaticamente
+  let extra = '';
+  try{
+    const faltam = mesesFaltantesCliente({id, ...dados});
+    if(faltam.length){
+      const criados = await criarLancamentosEmAberto([{c:{id, ...dados}, meses:faltam}]);
+      extra = ` — ${criados} lançamento(s) em aberto gerado(s)`;
+    }
+  }catch(e){ console.error(e); extra = ' (falha ao gerar lançamentos em aberto)'; }
   closeModal('modal-cli');
-  toast(editCliId?'Cliente atualizado':'Cliente cadastrado');
+  toast((novo?'Cliente cadastrado':'Cliente atualizado')+extra);
   editCliId=null;
 };
 
@@ -2828,6 +2842,65 @@ window.excluirCliente = async function(id){
   }
   toast('Cliente removido');
 };
+
+// ─── LANÇAMENTOS EM ABERTO AUTOMÁTICOS (contrato retroativo) ────────────────
+// Meses (YYYY-MM) do início do contrato até o mês atual que ainda não têm lançamento
+function mesesFaltantesCliente(c){
+  if(!c || !c.mesInicio || !c.diaPagar || !c.valor || Number(c.valor)<=0) return [];
+  const [anoIni, mesIni] = c.mesInicio.split('-').map(Number);
+  if(!anoIni || !mesIni) return [];
+  const hoje = new Date();
+  const anoAtual = hoje.getFullYear(), mesAtualNum = hoje.getMonth()+1;
+  const meses = [];
+  let ano = anoIni, mes = mesIni, n = 0;
+  while(ano < anoAtual || (ano === anoAtual && mes <= mesAtualNum)){
+    if(!c.tempoContrato || n < Number(c.tempoContrato)){
+      meses.push(`${ano}-${String(mes).padStart(2,'0')}`);
+    }
+    n++;
+    mes++;
+    if(mes>12){ mes=1; ano++; }
+  }
+  const jaExistem = new Set(lancamentos.filter(l=>l.clienteId===c.id).map(l=>l.mes));
+  return meses.filter(m=>!jaExistem.has(m));
+}
+
+// Cria em lote os lançamentos em aberto. itens = [{c, meses:[...]}]
+async function criarLancamentosEmAberto(itens){
+  let total = 0;
+  let batch = writeBatch(db);
+  let ops = 0;
+  for(const {c, meses} of itens){
+    const dia = String(c.diaPagar).padStart(2,'0');
+    for(const m of meses){
+      batch.set(doc(db,'lancamentos',uid()),{
+        clienteId:c.id, mes:m, vencimento:`${m}-${dia}`, valor:Number(c.valor),
+        formaPagamento:c.formaPagamento||'', obs:'', pago:false,
+        dataRecebimento:null, valorRecebido:null, formaRecebimento:null, obsRecebimento:null
+      });
+      total++; ops++;
+      if(ops>=400){ await batch.commit(); batch = writeBatch(db); ops=0; }
+    }
+  }
+  if(ops>0) await batch.commit();
+  return total;
+}
+
+// Ao abrir o sistema (admin): clientes já cadastrados com meses em aberto sem lançamento
+let _syncPendentesFeito = false, _cliCarregou = false, _lancCarregou = false;
+async function verificarLancamentosPendentes(){
+  if(_syncPendentesFeito || !modoAdmin || !_cliCarregou || !_lancCarregou) return;
+  _syncPendentesFeito = true;
+  const itens = clientes
+    .map(c=>({c, meses:mesesFaltantesCliente(c)}))
+    .filter(x=>x.meses.length);
+  if(!itens.length) return;
+  const total = itens.reduce((s,x)=>s+x.meses.length,0);
+  const resumo = itens.map(x=>`• ${x.c.nome}: ${x.meses.length} mês(es) (${fmtMes(x.meses[0])} a ${fmtMes(x.meses[x.meses.length-1])})`).join('\n');
+  if(!confirm(`Encontrei ${total} lançamento(s) em aberto que ainda não existem no sistema, de contratos já iniciados:\n\n${resumo}\n\nGerar agora? (Eles aparecerão como pendentes/vencidos até você dar baixa.)\n\nCancelar = não gerar agora (você pode gerar por cliente no cadastro dele).`)) return;
+  const criados = await criarLancamentosEmAberto(itens);
+  toast(`${criados} lançamento(s) em aberto gerado(s)`);
+}
 
 // ─── GERAR LANÇAMENTOS RETROATIVOS (por cliente) ────────────────────────────
 window.gerarLancamentosRetroativos = async function(){
