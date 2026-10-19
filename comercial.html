@@ -1307,12 +1307,16 @@ function iniciarListeners(){
     setSyncStatus('ok','Sincronizado');
     renderAll();
     if(document.getElementById("tab-mapa")?.classList.contains("active")) renderMapa();
+    _cliCarregou = true;
+    setTimeout(verificarMesAtual, 800);
   }, ()=>setSyncStatus('err','Erro de conexão'));
 
   onSnapshot(collection(db,'lancamentos'), snap=>{
     lancamentos = snap.docs.map(d=>({id:d.id,...d.data()}));
     setSyncStatus('ok','Sincronizado');
     renderAll();
+    _lancCarregou = true;
+    setTimeout(verificarMesAtual, 800);
   }, ()=>setSyncStatus('err','Erro de conexão'));
 
   onSnapshot(collection(db,'parceirosPoliticos'), snap=>{
@@ -2955,6 +2959,36 @@ window.limparGeradosPorEngano = async function(){
   if(ops>0) await batch.commit();
   toast(`${lista.length} lançamentos removidos`);
 };
+
+// ─── MÊS ATUAL AUTOMÁTICO ────────────────────────────────────────────────────
+// Contrato vigente em um mês (YYYY-MM): respeita mês de início e duração, se existirem
+function contratoVigenteNoMes(c, mes){
+  if(c.mesInicio){
+    if(mes < c.mesInicio) return false;
+    if(c.tempoContrato){
+      const [a1,m1] = c.mesInicio.split('-').map(Number);
+      const [a2,m2] = mes.split('-').map(Number);
+      const idx = (a2-a1)*12 + (m2-m1); // 0 = primeiro mês
+      if(idx >= Number(c.tempoContrato)) return false;
+    }
+  }
+  return true;
+}
+
+// Ao abrir (admin): clientes com valor e dia de pagamento que ainda não têm lançamento do mês atual
+let _mesAtualVerificado = false, _cliCarregou = false, _lancCarregou = false;
+async function verificarMesAtual(){
+  if(_mesAtualVerificado || !modoAdmin || !_cliCarregou || !_lancCarregou) return;
+  _mesAtualVerificado = true;
+  const mes = mesAtual();
+  const jaTem = new Set(lancamentos.filter(l=>l.mes===mes).map(l=>l.clienteId));
+  const faltam = clientes.filter(c=>c.valor && Number(c.valor)>0 && c.diaPagar && !jaTem.has(c.id) && contratoVigenteNoMes(c, mes));
+  if(!faltam.length) return;
+  const total = faltam.reduce((t,c)=>t+Number(c.valor||0),0);
+  if(!confirm(`Faltam os lançamentos de ${fmtMes(mes)} para ${faltam.length} cliente(s), somando ${fmtBRL(total)}.\n\nGerar agora? (Só este mês; meses anteriores não são criados.)`)) return;
+  const criados = await criarLancamentosEmAberto(faltam.map(c=>({c, meses:[mes]})));
+  toast(`${criados} lançamento(s) de ${fmtMes(mes)} gerado(s)`);
+}
 
 // ─── GERAR LANÇAMENTOS RETROATIVOS (por cliente) ────────────────────────────
 window.gerarLancamentosRetroativos = async function(){
