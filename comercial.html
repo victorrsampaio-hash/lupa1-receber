@@ -2924,18 +2924,23 @@ window.limparGeradosPorEngano = async function(){
 };
 
 // ─── MÊS ATUAL AUTOMÁTICO ────────────────────────────────────────────────────
-// Contrato vigente em um mês (YYYY-MM): respeita mês de início e duração, se existirem
+// Cliente ativo em um mês (YYYY-MM): contrato dentro do prazo OU já renovado na prática
+// (tem lançamento recente posterior ao fim do contrato previsto)
 function contratoVigenteNoMes(c, mes){
-  if(c.mesInicio){
-    if(mes < c.mesInicio) return false;
-    if(c.tempoContrato){
-      const [a1,m1] = c.mesInicio.split('-').map(Number);
-      const [a2,m2] = mes.split('-').map(Number);
-      const idx = (a2-a1)*12 + (m2-m1); // 0 = primeiro mês
-      if(idx >= Number(c.tempoContrato)) return false;
-    }
-  }
-  return true;
+  if(!c.mesInicio) return true;               // sem data de início: considera contínuo
+  if(mes < c.mesInicio) return false;         // ainda não começou
+  if(!c.tempoContrato) return true;           // sem duração: contínuo
+  const [a1,m1] = c.mesInicio.split('-').map(Number);
+  const [a2,m2] = mes.split('-').map(Number);
+  if((a2-a1)*12 + (m2-m1) < Number(c.tempoContrato)) return true; // dentro do prazo
+  // Passou do prazo previsto: só continua se ainda vem sendo cobrado depois do fim
+  let fa = a1, fm = m1 + Number(c.tempoContrato) - 1;
+  fa += Math.floor((fm-1)/12); fm = ((fm-1)%12)+1;
+  const fim = `${fa}-${String(fm).padStart(2,'0')}`;
+  let ra = a2, rm = m2 - 3; // últimos 3 meses antes de "mes"
+  if(rm<1){ rm+=12; ra--; }
+  const desde = `${ra}-${String(rm).padStart(2,'0')}`;
+  return lancamentos.some(l=>l.clienteId===c.id && l.mes>=desde && l.mes<mes && l.mes>fim);
 }
 
 // Ao abrir (admin): clientes com valor e dia de pagamento que ainda não têm lançamento do mês atual
