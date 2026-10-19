@@ -362,7 +362,7 @@ textarea{resize:vertical;min-height:60px}
 </nav>
 
 <!-- TELA DE LOGIN -->
-<div class="login-overlay" id="login-overlay">
+<div class="login-overlay hide" id="login-overlay">
   <div class="login-box">
     <div class="login-logo">Lupa<span>1</span></div>
     <div class="login-sub">Contas a Receber</div>
@@ -3128,6 +3128,9 @@ window.excluirCliente = async function(id){ if(!requerAdmin()) return; await _ex
 const _gerarMesAtual = window.gerarMesAtual;
 window.gerarMesAtual = async function(){ if(!requerAdmin()) return; await _gerarMesAtual(); };
 
+// Acesso direto, sem tela de senha: entra automaticamente como administrador
+document.getElementById('login-input-senha').value = SENHA_ADMIN;
+window.confirmarSenha();
 </script>
 </body>
 </html>
