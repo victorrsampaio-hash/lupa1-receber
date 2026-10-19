@@ -466,6 +466,10 @@ textarea{resize:vertical;min-height:60px}
   <div class="alertas-grid">
     <div class="alertas-col-main">
       <div class="card">
+        <div class="card-head"><span class="card-title" id="a-vencer-titulo">A vencer neste mês</span><span id="a-vencer-total" class="badge badge-blue"></span></div>
+        <div class="card-body" id="painel-a-vencer"></div>
+      </div>
+      <div class="card">
         <div class="card-head"><span class="card-title">Vencidos e próximos vencimentos</span></div>
         <div class="card-body" id="painel-alertas-semana"></div>
       </div>
@@ -1444,6 +1448,38 @@ function renderPainel(){
         return `<div class="alert-item ${cls}">
           <div><div class="alert-name">${nomeCliente(l.clienteId)}</div>
           <div class="alert-meta">Venc. ${fmtData(l.vencimento)} · Ref. ${fmtMes(l.mes)} ${l.formaPagamento?'· '+l.formaPagamento:''}</div></div>
+          <div class="alert-right">
+            <div><div class="alert-val">${fmtBRL(l.valor)}</div><div style="margin-top:4px"><span class="badge badge-${cls}">${label}</span></div></div>
+            <button class="btn btn-sm btn-primary" onclick="openBaixa('${l.id}')">Baixa</button>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  // A vencer no mês selecionado: ainda não vencidos (de hoje em diante), em ordem de data
+  const aVencerEl = document.getElementById('painel-a-vencer');
+  if(aVencerEl){
+    let aVencer = abertos.filter(l=>(l.vencimento||'').slice(0,7)===mc && diasAtraso(l.vencimento)<=0)
+      .sort((a,b)=>a.vencimento.localeCompare(b.vencimento) || nomeCliente(a.clienteId).localeCompare(nomeCliente(b.clienteId),'pt-BR'));
+    if(buscaPainel) aVencer = aVencer.filter(l=>nomeCliente(l.clienteId).toLowerCase().includes(buscaPainel));
+    const tit = document.getElementById('a-vencer-titulo');
+    if(tit) tit.textContent = `A vencer — ${fmtMes(mc)}`;
+    const totEl = document.getElementById('a-vencer-total');
+    if(totEl) totEl.textContent = `${aVencer.length} · ${fmtBRL(aVencer.reduce((t,l)=>t+Number(l.valor||0),0))}`;
+    if(!aVencer.length){ aVencerEl.innerHTML = '<div class="empty">Nada a vencer neste mês</div>'; }
+    else {
+      let diaAnterior = '';
+      aVencerEl.innerHTML = aVencer.map(l=>{
+        const d = diasAtraso(l.vencimento);
+        const cls = d===0 ? 'amber' : 'blue';
+        const label = d===0 ? 'Hoje' : `em ${-d}d`;
+        const cab = l.vencimento!==diaAnterior
+          ? `<div class="venc-group-head" style="margin-top:6px"><span>${fmtData(l.vencimento)}</span></div>` : '';
+        diaAnterior = l.vencimento;
+        return `${cab}<div class="alert-item ${cls}">
+          <div><div class="alert-name">${nomeCliente(l.clienteId)}</div>
+          <div class="alert-meta">Ref. ${fmtMes(l.mes)} ${l.formaPagamento?'· '+l.formaPagamento:''}</div></div>
           <div class="alert-right">
             <div><div class="alert-val">${fmtBRL(l.valor)}</div><div style="margin-top:4px"><span class="badge badge-${cls}">${label}</span></div></div>
             <button class="btn btn-sm btn-primary" onclick="openBaixa('${l.id}')">Baixa</button>
