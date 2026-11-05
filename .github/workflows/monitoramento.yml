@@ -1,0 +1,41 @@
+name: Monitoramento de clientes
+
+on:
+  workflow_dispatch:        # botão Atualizar da página
+  schedule:
+    - cron: '40 10 * * *'   # todo dia às 7h40 (horário de Brasília)
+
+permissions:
+  contents: write
+
+concurrency:
+  group: monitoramento
+  cancel-in-progress: false
+
+jobs:
+  checagem:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependências
+        working-directory: scripts
+        run: npm install --no-audit --no-fund
+
+      - name: Ler o site lupa1.com.br
+        run: node scripts/varredura.mjs
+
+      - name: Gravar resultado
+        run: |
+          git config user.name "Monitoramento Lupa1"
+          git config user.email "monitoramento@users.noreply.github.com"
+          git add dados/monitoramento/materias.json dados/monitoramento/varredura.json
+          if git diff --cached --quiet; then echo "Nada mudou."; exit 0; fi
+          git commit -m "Checagem do monitoramento de clientes ($(TZ=America/Sao_Paulo date +%d/%m/%Y\ %H:%M))"
+          for i in 1 2 3; do git pull --rebase -q origin main && git push -q origin HEAD:main && exit 0; sleep 5; done
+          exit 1
