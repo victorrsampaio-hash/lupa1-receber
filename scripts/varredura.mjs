@@ -78,8 +78,8 @@ for (let p = 1; p < 150; p++) {
 }
 if (arts.size < 100) throw new Error(`Poucas matérias lidas (${arts.size}); nada foi gravado`);
 
-const regex = p => new RegExp(`(?<![A-Za-z])(?:${p})(?![a-z])`);
-const casa = (c, a) => c.padroes.some(p => regex(p).test(a.n)) && (c.exige || []).every(p => regex(p).test(a.n));
+const regex = (p, ci) => new RegExp(`(?<![A-Za-z])(?:${p})(?![a-z])`, ci ? 'i' : '');
+const casa = (c, a) => c.padroes.some(p => regex(p, c.sem_maiusculas).test(a.n)) && (c.exige || []).every(p => regex(p, c.sem_maiusculas).test(a.n));
 
 const achados = {};
 for (const c of ativos) achados[c.cliente_id] = [...arts.values()].filter(a => casa(c, a));

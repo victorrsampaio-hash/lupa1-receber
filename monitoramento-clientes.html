@@ -85,6 +85,15 @@ td.cat{font-size:12px;color:var(--muted)}
 .btn{font:inherit;font-size:14px;font-weight:600;background:var(--blue);color:#fff;border:0;border-radius:10px;padding:9px 16px;cursor:pointer}
 .btn.ghost{background:#fff;color:var(--blue);border:1px solid var(--line)}
 .toast button[hidden]{display:none}
+.addbox{background:var(--blue-soft);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+.addbox h3{font-size:15px;margin-bottom:10px}
+.addgrid{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:8px}
+.addgrid label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:#4a5a78;font-weight:600}
+.addgrid .wide{grid-column:1 / -1}
+.addgrid input,.addgrid select{font:inherit;font-size:14px;font-weight:400;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+.addhint{font-size:12px;color:var(--muted);margin-bottom:10px}
+@media (max-width:640px){.addgrid{grid-template-columns:1fr}}
+.novo{font-size:11px;font-weight:600;color:var(--blue);background:var(--blue-soft);border-radius:6px;padding:1px 6px;margin-left:8px}
 .err{background:var(--crit-soft);color:var(--crit);border-radius:10px;padding:12px 14px;font-size:14px;margin-bottom:18px}
 @media (max-width:640px){.hide-sm{display:none}.meta{text-align:left}h1{font-size:23px}}
 </style>
@@ -123,6 +132,22 @@ td.cat{font-size:12px;color:var(--muted)}
         <option value="1">De 1 a 30 dias</option>
         <option value="31">Acima de 30 dias</option>
       </select>
+      <button class="btn" id="add-abrir" type="button">+ Adicionar cliente</button>
+    </div>
+    <div class="addbox" id="addbox" hidden>
+      <h3>Adicionar cliente ao monitoramento</h3>
+      <div class="addgrid">
+        <label>Nome do cliente<input id="add-nome" type="text" placeholder="Ex.: Altos ou João da Silva" autocomplete="off"></label>
+        <label>Categoria<select id="add-cat">
+          <option>Município</option><option>Político</option><option>Governo</option><option>Câmara Municipal</option><option>Privado</option><option>Evento</option><option>Outro</option>
+        </select></label>
+        <label class="wide">Outros nomes para procurar (opcional, separados por vírgula)<input id="add-outros" type="text" placeholder="Ex.: apelido, sigla, nome de urna" autocomplete="off"></label>
+      </div>
+      <p class="addhint">A busca procura o nome como nome próprio (com inicial maiúscula, sem diferenciar acentos) no título, na linha fina e no texto das matérias. Para município, escreva só o nome da cidade (ex.: Altos). Siglas podem ir em outros nomes (ex.: PMA).</p>
+      <div class="tools">
+        <button class="btn" id="add-salvar" type="button">Adicionar</button>
+        <button class="btn ghost" id="add-fechar" type="button">Cancelar</button>
+      </div>
     </div>
     <div class="scroll">
       <table>
@@ -204,8 +229,8 @@ function aviso(txt, undo) {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, undo ? 8000 : 5000);
 }
 
-async function api(method, body) {
-  const r = await fetch(`https://api.github.com/repos/${REPO}/contents/${ARQ_REM}` + (method === 'GET' ? '?ref=main&t=' + Date.now() : ''), {
+async function api(method, body, arquivo = ARQ_REM) {
+  const r = await fetch(`https://api.github.com/repos/${REPO}/contents/${arquivo}` + (method === 'GET' ? '?ref=main&t=' + Date.now() : ''), {
     method, headers: {'Authorization': 'Bearer ' + lerToken(), 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28'},
     body: body ? JSON.stringify(body) : undefined, cache: 'no-store'
   });
@@ -214,13 +239,13 @@ async function api(method, body) {
 }
 
 // Lê a lista atual no GitHub, aplica a mudança e grava. Tenta de novo uma vez se alguém gravou junto.
-async function gravarLista(mudar, msg) {
+async function gravarLista(mudar, msg, arquivo = ARQ_REM) {
   for (let tentativa = 0; tentativa < 2; tentativa++) {
-    const atual = await api('GET');
+    const atual = await api('GET', null, arquivo);
     let lista = []; try { lista = JSON.parse(b64dec(atual.content)); } catch (e) { lista = []; }
     const nova = mudar(lista);
     try {
-      await api('PUT', {message: msg, content: b64enc(JSON.stringify(nova, null, 1) + '\n'), sha: atual.sha, branch: 'main'});
+      await api('PUT', {message: msg, content: b64enc(JSON.stringify(nova, null, 1) + '\n'), sha: atual.sha, branch: 'main'}, arquivo);
       return nova;
     } catch (e) { if (e.status !== 409 || tentativa) throw e; }
   }
@@ -274,6 +299,52 @@ function abrirConfig(msg) {
   document.getElementById('cfg-estado').textContent = lerToken() ? 'Este aparelho já está conectado.' : 'Este aparelho ainda não está conectado.';
   c.scrollIntoView({behavior: 'smooth', block: 'start'});
 }
+const ARQ_CLI = 'dados/monitoramento/clientes.json';
+const slug = t => tira(t).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48);
+// Mantém maiúsculas como num nome próprio (Altos, e não "altos" de "preços altos"); só tira acentos.
+const MINUSC = new Set(['de', 'da', 'do', 'das', 'dos', 'e']);
+const capitaliza = t => (/^[A-Z0-9À-Ý]{2,6}$/.test(t)) ? t : (t === t.toUpperCase() || t === t.toLowerCase())
+  ? t.toLowerCase().split(' ').map((w, i) => i && MINUSC.has(w) ? w : w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+  : t;
+const semAcento = t => t.normalize('NFD').replace(/[̀-ͯ]/g, '');
+const padrao = t => semAcento(capitaliza(t.replace(/\s+/g, ' ').trim())).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+let NOVOS = new Set();
+
+async function adicionar() {
+  const nome = document.getElementById('add-nome').value.trim().replace(/\s+/g, ' ');
+  const cat = document.getElementById('add-cat').value;
+  const outros = document.getElementById('add-outros').value.split(',').map(x => x.trim()).filter(x => x.length >= 3);
+  if (nome.length < 3) { aviso('Escreva o nome do cliente.'); return; }
+  if (!lerToken()) { abrirConfig('Para adicionar clientes, conecte o Desk ao GitHub neste aparelho.'); return; }
+  if (ocupado) return; ocupado = true;
+  aviso(`Adicionando ${nome}...`);
+  try {
+    let id = slug(nome);
+    const reativar = REM.has(id);
+    await gravarLista(lista => {
+      if (lista.some(c => c.cliente_id === id)) {
+        if (reativar) return lista;
+        id = id + '-' + Date.now().toString(36).slice(-4);
+      }
+      const pad = [...new Set([nome, ...outros].map(padrao))];
+      return [...lista, {cliente_id: id, cliente: nome, categoria: cat, padroes: pad, busca: nome, adicionado_em: new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10)}];
+    }, `Adiciona ${nome} ao monitoramento de clientes`, ARQ_CLI);
+    if (reativar) {
+      const nova = await gravarLista(l => l.filter(x => x.cliente_id !== id), `Restaura ${nome} no monitoramento de clientes`);
+      aplicarLista(nova);
+    } else {
+      RES.push({id, cliente: nome, categoria: cat, mes: 0, ultima: null, dias: null, f: 31, alerta: 'Aguardando a próxima checagem'});
+      NOVOS.add(id);
+      if (![...document.getElementById('fcat').options].some(o => o.value === cat)) document.getElementById('fcat').append(new Option(cat, cat));
+    }
+    atualizar();
+    document.getElementById('add-nome').value = ''; document.getElementById('add-outros').value = '';
+    document.getElementById('addbox').hidden = true;
+    aviso(reativar ? `${nome} já existia e voltou ao monitoramento.` : `${nome} foi adicionado. As matérias aparecem na próxima checagem.`);
+  } catch (e) { aviso(`Não consegui adicionar: ${e.message}.`); if (e.status === 401) abrirConfig('A chave salva não funcionou. Cole uma chave nova.'); }
+  ocupado = false;
+}
+
 async function salvarConfig() {
   const t = document.getElementById('cfg-token').value.trim();
   if (!t) return;
@@ -303,7 +374,9 @@ async function carregar() {
     const ultima = ms.map(a => a.data).sort().pop() || null;
     const dias = ultima ? Math.round((ref - Date.parse(ultima.slice(0,10))) / 864e5) : null;
     const f = faixa(dias);
-    return {id:x.cliente_id, cliente:x.cliente, categoria:x.categoria, mes: ms.filter(a => a.data.slice(0,7) === VAR.mes).length, ultima, dias, f, alerta: rotulo(dias, !!ultima)};
+    const aguardando = !ultima && x.adicionado_em && (!VAR.checado_em || VAR.checado_em.slice(0,10) <= x.adicionado_em);
+    if (aguardando) NOVOS.add(x.cliente_id);
+    return {id:x.cliente_id, cliente:x.cliente, categoria:x.categoria, mes: ms.filter(a => a.data.slice(0,7) === VAR.mes).length, ultima, dias, f, alerta: aguardando ? 'Aguardando a próxima checagem' : rotulo(dias, !!ultima)};
   });
 }
 
@@ -338,7 +411,8 @@ function tabela() {
   tb.replaceChildren();
   for (const r of rows) {
     const tr = el('tr', sel === r.id ? 'sel' : '');
-    tr.append(el('td','cli',r.cliente), el('td','cat hide-sm',r.categoria), el('td','num',String(r.mes)), el('td','hide-sm', r.ultima ? dia(r.ultima) : 'Nenhuma'), el('td','num', r.dias == null ? '—' : String(r.dias)));
+    const tdc = el('td','cli',r.cliente); if (NOVOS.has(r.id)) tdc.append(el('span','novo','novo'));
+    tr.append(tdc, el('td','cat hide-sm',r.categoria), el('td','num',String(r.mes)), el('td','hide-sm', r.ultima ? dia(r.ultima) : 'Nenhuma'), el('td','num', r.dias == null ? '—' : String(r.dias)));
     const td = el('td'); td.append(el('span','badge b' + r.f, r.alerta)); tr.append(td);
     const tdr = el('td','num'); const rb = el('button','rm','Remover'); rb.type = 'button'; rb.title = 'Tirar este cliente do monitoramento';
     rb.addEventListener('click', ev => { ev.stopPropagation(); remover(r); }); tdr.append(rb); tr.append(tdr);
@@ -384,6 +458,10 @@ for (const th of document.querySelectorAll('th[data-k]')) th.addEventListener('c
 
 document.getElementById('toast-u').addEventListener('click', () => { const f = desfazer; desfazer = null; document.getElementById('toast').hidden = true; if (f) f(); });
 document.getElementById('cfg-abrir').addEventListener('click', () => abrirConfig(''));
+document.getElementById('add-abrir').addEventListener('click', () => { const b = document.getElementById('addbox'); b.hidden = !b.hidden; if (!b.hidden) document.getElementById('add-nome').focus(); });
+document.getElementById('add-fechar').addEventListener('click', () => { document.getElementById('addbox').hidden = true; });
+document.getElementById('add-salvar').addEventListener('click', adicionar);
+document.getElementById('add-nome').addEventListener('keydown', e => { if (e.key === 'Enter') adicionar(); });
 document.getElementById('cfg-salvar').addEventListener('click', salvarConfig);
 document.getElementById('cfg-sair').addEventListener('click', () => { gravarToken(''); document.getElementById('cfg-estado').textContent = 'Desconectado deste aparelho.'; });
 document.getElementById('cfg-fechar').addEventListener('click', () => { document.getElementById('config').hidden = true; });
