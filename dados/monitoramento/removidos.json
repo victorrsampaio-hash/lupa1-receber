@@ -28,5 +28,10 @@
   "cliente_id": "mainha",
   "cliente": "Mainha",
   "removido_em": "2026-11-05"
+ },
+ {
+  "cliente_id": "ana-paula",
+  "cliente": "Ana Paula",
+  "removido_em": "2026-11-05"
  }
 ]
