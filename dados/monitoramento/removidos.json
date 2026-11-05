@@ -3,5 +3,10 @@
   "cliente_id": "pacheco-prime",
   "cliente": "Pacheco Prime",
   "removido_em": "2026-11-05"
+ },
+ {
+  "cliente_id": "gov-amapa",
+  "cliente": "Governo do Amapá",
+  "removido_em": "2026-11-05"
  }
 ]
