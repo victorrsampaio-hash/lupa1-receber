@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lupa1 · Monitoramento de Clientes</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#edf2fa; --card:#fff; --line:#c8d8f0; --line-soft:#e1e9f6;
+  --ink:#1a2540; --muted:#7a90b8; --blue:#1e4a8a; --blue-soft:#e4edf8; --green:#4caf50;
+  --ok:#2e8b57; --ok-soft:#e3f3ea; --gray:#8a97ad; --gray-soft:#eef1f6;
+  --warn:#b7791f; --warn-soft:#fbf0dc; --bad:#c2410c; --bad-soft:#fde8dc; --crit:#b42318; --crit-soft:#fbe1df;
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;padding:28px 20px 60px}
+.app{max-width:1160px;margin:0 auto}
+a{color:var(--blue)}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+.back{font-size:13px;text-decoration:none;color:var(--muted);display:inline-flex;align-items:center;gap:6px;margin-bottom:10px}
+.back:hover{color:var(--blue)}
+.logo{font-size:15px;font-weight:800;color:var(--blue);letter-spacing:-.3px}
+.logo span{color:var(--green)}
+h1{font-size:28px;font-weight:700;color:var(--ink);letter-spacing:-.4px;margin-top:2px}
+.lede{font-size:14px;color:#4a5a78;margin-top:6px;max-width:70ch}
+.lede b{color:var(--ink)}
+.meta{font-size:12px;color:var(--muted);text-align:right;line-height:1.6}
+.meta b{color:var(--ink);font-weight:600}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:22px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;border-top:4px solid var(--blue);cursor:pointer;text-align:left;font:inherit;color:inherit;transition:transform .12s,box-shadow .12s}
+.tile:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(30,74,138,.12)}
+.tile.on{outline:2px solid var(--blue);outline-offset:1px}
+.tile .l{font-size:12px;color:var(--muted);display:block}
+.tile .v{font-size:30px;font-weight:700;display:block;margin-top:4px;font-variant-numeric:tabular-nums}
+.tile.f0{border-top-color:var(--ok)} .tile.f1{border-top-color:var(--gray)} .tile.f3{border-top-color:var(--warn)}
+.tile.f7{border-top-color:var(--bad)} .tile.f12{border-top-color:var(--crit);background:#fff7f6}
+.tile.tot{cursor:default} .tile.tot:hover{transform:none;box-shadow:none}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:22px}
+.card h2{font-size:16px;font-weight:600}
+.note{font-size:12px;color:var(--muted);margin:4px 0 14px}
+.tools{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.tools input,.tools select{font:inherit;font-size:14px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+.tools input{flex:1 1 220px}
+.tools input:focus,.tools select:focus{outline:2px solid var(--blue);outline-offset:1px}
+.scroll{max-height:620px;overflow:auto;border:1px solid var(--line-soft);border-radius:10px}
+table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+th{position:sticky;top:0;background:var(--blue-soft);text-align:left;z-index:1}
+th button{all:unset;cursor:pointer;display:block;padding:10px 14px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--blue);font-weight:600;white-space:nowrap}
+th[aria-sort=ascending] button::after{content:" \2191"}
+th[aria-sort=descending] button::after{content:" \2193"}
+td{padding:10px 14px;border-top:1px solid var(--line-soft);vertical-align:middle}
+.num{text-align:right}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:#f5f8fd}
+tbody tr.sel td{background:var(--blue-soft)}
+td.cli{font-weight:600}
+td.cat{font-size:12px;color:var(--muted)}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;white-space:nowrap}
+.badge::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.b0{color:var(--ok);background:var(--ok-soft)} .b1{color:#5f6b80;background:var(--gray-soft)}
+.b3{color:var(--warn);background:var(--warn-soft)} .b7{color:var(--bad);background:var(--bad-soft)}
+.b12{color:var(--crit);background:var(--crit-soft)}
+.det ul{list-style:none}
+.det li{display:flex;gap:14px;padding:9px 0;border-top:1px solid var(--line-soft);font-size:14px;align-items:baseline}
+.det li:first-child{border-top:0}
+.det .d{color:var(--muted);white-space:nowrap;min-width:118px;font-variant-numeric:tabular-nums;font-size:13px}
+.det a{color:var(--ink);text-decoration:none}
+.det a:hover{color:var(--blue);text-decoration:underline}
+.det li.prev{opacity:.6}
+.tag{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:1px 6px;margin-left:8px;white-space:nowrap}
+.empty{color:var(--muted);font-size:14px;padding:6px 0}
+.err{background:var(--crit-soft);color:var(--crit);border-radius:10px;padding:12px 14px;font-size:14px;margin-bottom:18px}
+@media (max-width:640px){.hide-sm{display:none}.meta{text-align:left}h1{font-size:23px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div>
+      <a class="back" href="index.html">&larr; Lupa1 Desk</a>
+      <div class="logo">Lupa<span>1</span></div>
+      <h1>Monitoramento de Clientes</h1>
+      <p class="lede" id="lede">Carregando os dados da última checagem do site...</p>
+    </div>
+    <div class="meta" id="meta"></div>
+  </div>
+
+  <div id="erro" class="err" hidden></div>
+
+  <div class="tiles" id="tiles">
+    <div class="tile tot"><span class="l">Citações no mês</span><span class="v" id="t-total">—</span></div>
+    <button class="tile f0" data-f="0" type="button"><span class="l">Em dia (matéria no dia)</span><span class="v" id="t-0">—</span></button>
+    <button class="tile f1" data-f="1" type="button"><span class="l">1 a 2 dias sem matéria</span><span class="v" id="t-1">—</span></button>
+    <button class="tile f3" data-f="3" type="button"><span class="l">3 a 6 dias sem matéria</span><span class="v" id="t-3">—</span></button>
+    <button class="tile f7" data-f="7" type="button"><span class="l">1 semana (7 a 11 dias)</span><span class="v" id="t-7">—</span></button>
+    <button class="tile f12" data-f="12" type="button"><span class="l">12 dias ou mais</span><span class="v" id="t-12">—</span></button>
+  </div>
+
+  <section class="card">
+    <h2>Clientes</h2>
+    <p class="note">Conta cada matéria do lupa1.com.br que cita o nome do cliente no título, na linha fina ou no texto. Os dias sem matéria são contados até a data da última checagem. Clique num cliente para ver as matérias.</p>
+    <div class="tools">
+      <input id="q" type="search" placeholder="Buscar cliente" aria-label="Buscar cliente">
+      <select id="fcat" aria-label="Categoria"><option value="">Todas as categorias</option></select>
+      <select id="ff" aria-label="Alerta">
+        <option value="">Todos os alertas</option>
+        <option value="0">Em dia</option>
+        <option value="1">1 a 2 dias</option>
+        <option value="3">3 a 6 dias</option>
+        <option value="7">1 semana</option>
+        <option value="12">12 dias ou mais</option>
+      </select>
+    </div>
+    <div class="scroll">
+      <table>
+        <thead><tr>
+          <th data-k="cliente"><button type="button">Cliente</button></th>
+          <th data-k="categoria" class="hide-sm"><button type="button">Categoria</button></th>
+          <th data-k="mes" class="num"><button type="button">Matérias no mês</button></th>
+          <th data-k="ultima" class="hide-sm"><button type="button">Última matéria</button></th>
+          <th data-k="dias" class="num" aria-sort="descending"><button type="button">Dias sem matéria</button></th>
+          <th data-k="dias"><button type="button">Alerta</button></th>
+        </tr></thead>
+        <tbody id="tb"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card det" id="det">
+    <h2 id="det-t">Matérias do cliente</h2>
+    <p class="note">Mais recentes primeiro. A linha esmaecida é a última matéria antes deste mês. "Lista de municípios" marca matérias que citam 10 ou mais municípios clientes de uma vez.</p>
+    <div id="det-c"><p class="empty">Clique num cliente na tabela.</p></div>
+  </section>
+</div>
+
+<script>
+const BASE = 'dados/monitoramento/';
+const ROTULO = {0:'Em dia',1:'1 dia sem matéria',3:'3 dias sem matéria',7:'1 semana sem matéria',12:'12 dias ou mais'};
+const faixa = d => d == null ? 12 : d >= 12 ? 12 : d >= 7 ? 7 : d >= 3 ? 3 : d >= 1 ? 1 : 0;
+const dia = s => { if (!s) return ''; const [y,m,d] = s.slice(0,10).split('-'); return `${d}/${m}/${y}`; };
+const tira = s => s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+
+let RES = [], MAT = [], VAR = {}, sel = null, sort = {k:'dias', dir:-1};
+
+async function carregar() {
+  const v = `?v=${Date.now()}`;
+  const [c, m, s] = await Promise.all(['clientes','materias','varredura'].map(n => fetch(BASE + n + '.json' + v).then(r => { if (!r.ok) throw new Error(n); return r.json(); })));
+  MAT = m; VAR = s[0] || {};
+  const ref = Date.parse(String(VAR.checado_em || '').slice(0,10));
+  RES = c.map(x => {
+    const ms = m.filter(a => a.cliente_id === x.cliente_id);
+    const ultima = ms.map(a => a.data).sort().pop() || null;
+    const dias = ultima ? Math.round((ref - Date.parse(ultima.slice(0,10))) / 864e5) : null;
+    const f = faixa(dias);
+    return {id:x.cliente_id, cliente:x.cliente, categoria:x.categoria, mes: ms.filter(a => a.data.slice(0,7) === VAR.mes).length, ultima, dias, f, alerta: ultima ? ROTULO[f] : 'Nenhuma matéria encontrada'};
+  });
+}
+
+function cabecalho() {
+  const n = f => RES.filter(r => r.f === f).length;
+  document.getElementById('t-total').textContent = RES.reduce((s, r) => s + r.mes, 0);
+  for (const f of [0,1,3,7,12]) document.getElementById('t-' + f).textContent = n(f);
+  const alerta = RES.filter(r => r.f >= 3).length;
+  const lede = document.getElementById('lede');
+  lede.replaceChildren(el('b', null, String(alerta)), document.createTextNode(` de ${RES.length} clientes estão há 3 dias ou mais sem matéria no portal.`));
+  const mes = VAR.mes ? VAR.mes.split('-').reverse().join('/') : '';
+  const meta = document.getElementById('meta');
+  meta.replaceChildren();
+  meta.append('Mês de referência: ', el('b', null, mes), el('br'), 'Última checagem: ', el('b', null, VAR.checado_em ? `${dia(VAR.checado_em)} às ${VAR.checado_em.slice(11,16)}` : '—'), el('br'), el('span', null, `${Number(VAR.artigos_lidos || 0).toLocaleString('pt-BR')} matérias lidas`));
+  const cats = [...new Set(RES.map(r => r.categoria))].sort((a,b) => a.localeCompare(b,'pt'));
+  const sc = document.getElementById('fcat');
+  for (const c of cats) sc.append(new Option(c, c));
+}
+
+function tabela() {
+  const q = tira(document.getElementById('q').value);
+  const fc = document.getElementById('fcat').value;
+  const ff = document.getElementById('ff').value;
+  const val = r => sort.k === 'dias' ? (r.dias == null ? 99999 : r.dias) : sort.k === 'ultima' ? (r.ultima || '') : r[sort.k];
+  const rows = RES.filter(r => (!q || tira(r.cliente).includes(q)) && (!fc || r.categoria === fc) && (!ff || String(r.f) === ff))
+    .sort((a, b) => { const x = val(a), y = val(b); return (typeof x === 'number' ? x - y : String(x).localeCompare(String(y),'pt')) * sort.dir || a.cliente.localeCompare(b.cliente,'pt'); });
+  const tb = document.getElementById('tb');
+  tb.replaceChildren();
+  for (const r of rows) {
+    const tr = el('tr', sel === r.id ? 'sel' : '');
+    tr.append(el('td','cli',r.cliente), el('td','cat hide-sm',r.categoria), el('td','num',String(r.mes)), el('td','hide-sm', r.ultima ? dia(r.ultima) : 'Nenhuma'), el('td','num', r.dias == null ? '—' : String(r.dias)));
+    const td = el('td'); td.append(el('span','badge b' + r.f, r.alerta)); tr.append(td);
+    tr.addEventListener('click', () => { sel = r.id; tabela(); detalhe(); document.getElementById('det').scrollIntoView({behavior:'smooth', block:'start'}); });
+    tb.append(tr);
+  }
+  if (!rows.length) { const tr = el('tr'); const td = el('td','empty','Nenhum cliente com esse filtro.'); td.colSpan = 6; tr.append(td); tb.append(tr); }
+}
+
+function detalhe() {
+  const r = RES.find(x => x.id === sel);
+  document.getElementById('det-t').textContent = r ? `Matérias de ${r.cliente}` : 'Matérias do cliente';
+  const box = document.getElementById('det-c');
+  box.replaceChildren();
+  const ms = MAT.filter(m => m.cliente_id === sel).sort((a, b) => b.data.localeCompare(a.data));
+  if (!ms.length) { box.append(el('p','empty','Nenhuma matéria encontrada no site para este cliente.')); return; }
+  const ul = el('ul');
+  for (const m of ms) {
+    const li = el('li', m.data.slice(0,7) !== VAR.mes ? 'prev' : '');
+    const a = el('a', null, m.titulo); a.href = m.link; a.target = '_blank'; a.rel = 'noopener';
+    const s = el('span'); s.append(a);
+    if (String(m.lista) === '1') s.append(el('span','tag','Lista de municípios'));
+    li.append(el('span','d', `${dia(m.data)} ${m.data.slice(11,16)}`), s);
+    ul.append(li);
+  }
+  box.append(ul);
+}
+
+document.getElementById('q').addEventListener('input', tabela);
+document.getElementById('fcat').addEventListener('change', tabela);
+document.getElementById('ff').addEventListener('change', () => { marcaTile(); tabela(); });
+function marcaTile() { const v = document.getElementById('ff').value; for (const t of document.querySelectorAll('.tile[data-f]')) t.classList.toggle('on', t.dataset.f === v); }
+for (const t of document.querySelectorAll('.tile[data-f]')) t.addEventListener('click', () => {
+  const ff = document.getElementById('ff'); ff.value = ff.value === t.dataset.f ? '' : t.dataset.f; marcaTile(); tabela();
+});
+for (const th of document.querySelectorAll('th[data-k]')) th.addEventListener('click', () => {
+  const k = th.dataset.k;
+  sort = sort.k === k ? {k, dir:-sort.dir} : {k, dir: (k === 'cliente' || k === 'categoria') ? 1 : -1};
+  for (const o of document.querySelectorAll('th[data-k]')) o.removeAttribute('aria-sort');
+  th.setAttribute('aria-sort', sort.dir === 1 ? 'ascending' : 'descending');
+  tabela();
+});
+
+carregar().then(() => { cabecalho(); tabela(); }).catch(e => {
+  const er = document.getElementById('erro'); er.hidden = false;
+  er.textContent = 'Não foi possível carregar os dados da checagem (' + e.message + '). Tente recarregar a página.';
+  document.getElementById('lede').textContent = '';
+});
+</script>
+</body>
+</html>

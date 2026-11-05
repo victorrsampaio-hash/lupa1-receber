@@ -1,0 +1,262 @@
+[
+{
+"cliente_id": "alto-longa",
+"cliente": "Alto Longá",
+"categoria": "Município"
+},
+{
+"cliente_id": "ana-paula",
+"cliente": "Ana Paula",
+"categoria": "Político"
+},
+{
+"cliente_id": "avelar-ferreira",
+"cliente": "Avelar Ferreira",
+"categoria": "Político"
+},
+{
+"cliente_id": "barbara-firmino",
+"cliente": "Bárbara Firmino",
+"categoria": "Político"
+},
+{
+"cliente_id": "batalha",
+"cliente": "Batalha",
+"categoria": "Município"
+},
+{
+"cliente_id": "bom-jesus",
+"cliente": "Bom Jesus",
+"categoria": "Município"
+},
+{
+"cliente_id": "bom-principio",
+"cliente": "Bom Princípio do Piauí",
+"categoria": "Município"
+},
+{
+"cliente_id": "campo-maior",
+"cliente": "Campo Maior",
+"categoria": "Município"
+},
+{
+"cliente_id": "caridade",
+"cliente": "Caridade do Piauí",
+"categoria": "Município"
+},
+{
+"cliente_id": "cocal",
+"cliente": "Cocal",
+"categoria": "Município"
+},
+{
+"cliente_id": "cocal-de-telha",
+"cliente": "Cocal de Telha",
+"categoria": "Município"
+},
+{
+"cliente_id": "cel-carlos-augusto",
+"cliente": "Coronel Carlos Augusto",
+"categoria": "Político"
+},
+{
+"cliente_id": "cel-jose-dias",
+"cliente": "Coronel José Dias",
+"categoria": "Município"
+},
+{
+"cliente_id": "cristino-castro",
+"cliente": "Cristino Castro",
+"categoria": "Município"
+},
+{
+"cliente_id": "curralinhos",
+"cliente": "Curralinhos",
+"categoria": "Município"
+},
+{
+"cliente_id": "demerval-lobao",
+"cliente": "Demerval Lobão",
+"categoria": "Município"
+},
+{
+"cliente_id": "draga-alana",
+"cliente": "Draga Alana",
+"categoria": "Político"
+},
+{
+"cliente_id": "enzo",
+"cliente": "Enzo",
+"categoria": "Político"
+},
+{
+"cliente_id": "esperantina",
+"cliente": "Esperantina",
+"categoria": "Município"
+},
+{
+"cliente_id": "fabio-abreu",
+"cliente": "Fábio Abreu",
+"categoria": "Político"
+},
+{
+"cliente_id": "felipe-sampaio",
+"cliente": "Felipe Sampaio",
+"categoria": "Político"
+},
+{
+"cliente_id": "floriano",
+"cliente": "Floriano",
+"categoria": "Município"
+},
+{
+"cliente_id": "gov-amapa",
+"cliente": "Governo do Amapá",
+"categoria": "Governo"
+},
+{
+"cliente_id": "gov-piaui",
+"cliente": "Governo do Piauí (Portal e Rádio Lupa1)",
+"categoria": "Governo"
+},
+{
+"cliente_id": "gracinha",
+"cliente": "Gracinha Mão Santa",
+"categoria": "Político"
+},
+{
+"cliente_id": "grand-watter",
+"cliente": "Grand Watter Park",
+"categoria": "Privado"
+},
+{
+"cliente_id": "inhuma",
+"cliente": "Inhuma",
+"categoria": "Município"
+},
+{
+"cliente_id": "jatoba",
+"cliente": "Jatobá do Piauí",
+"categoria": "Município"
+},
+{
+"cliente_id": "joao-madison",
+"cliente": "João Madison",
+"categoria": "Político"
+},
+{
+"cliente_id": "joaquim-pires",
+"cliente": "Joaquim Pires",
+"categoria": "Município"
+},
+{
+"cliente_id": "jose-de-freitas",
+"cliente": "José de Freitas (Câmara Municipal)",
+"categoria": "Câmara Municipal"
+},
+{
+"cliente_id": "luzilandia",
+"cliente": "Luzilândia",
+"categoria": "Município"
+},
+{
+"cliente_id": "madeiro",
+"cliente": "Madeiro",
+"categoria": "Município"
+},
+{
+"cliente_id": "mainha",
+"cliente": "Mainha",
+"categoria": "Político"
+},
+{
+"cliente_id": "marden",
+"cliente": "Marden Meneses",
+"categoria": "Político"
+},
+{
+"cliente_id": "miguel-alves",
+"cliente": "Miguel Alves",
+"categoria": "Município"
+},
+{
+"cliente_id": "miguel-leao",
+"cliente": "Miguel Leão (suspenso)",
+"categoria": "Município"
+},
+{
+"cliente_id": "pacheco-prime",
+"cliente": "Pacheco Prime",
+"categoria": "Privado"
+},
+{
+"cliente_id": "paixao-cristo",
+"cliente": "Paixão de Cristo – Miguel Leão",
+"categoria": "Evento"
+},
+{
+"cliente_id": "passagem-franca",
+"cliente": "Passagem Franca do Piauí",
+"categoria": "Município"
+},
+{
+"cliente_id": "pedro-ii",
+"cliente": "Pedro II",
+"categoria": "Município"
+},
+{
+"cliente_id": "pimenteiras",
+"cliente": "Pimenteiras",
+"categoria": "Município"
+},
+{
+"cliente_id": "porto",
+"cliente": "Porto",
+"categoria": "Município"
+},
+{
+"cliente_id": "regeneracao",
+"cliente": "Regeneração",
+"categoria": "Município"
+},
+{
+"cliente_id": "rubens-vieira",
+"cliente": "Rubens Vieira",
+"categoria": "Político"
+},
+{
+"cliente_id": "sao-goncalo",
+"cliente": "São Gonçalo do Piauí",
+"categoria": "Município"
+},
+{
+"cliente_id": "sao-jose",
+"cliente": "São José do Piauí",
+"categoria": "Município"
+},
+{
+"cliente_id": "sao-raimundo",
+"cliente": "São Raimundo Nonato",
+"categoria": "Município"
+},
+{
+"cliente_id": "sigefredo",
+"cliente": "Sigefredo Pacheco",
+"categoria": "Município"
+},
+{
+"cliente_id": "simoes",
+"cliente": "Simões",
+"categoria": "Município"
+},
+{
+"cliente_id": "simone",
+"cliente": "Simone",
+"categoria": "Político"
+},
+{
+"cliente_id": "urucui",
+"cliente": "Uruçuí",
+"categoria": "Município"
+}
+]
