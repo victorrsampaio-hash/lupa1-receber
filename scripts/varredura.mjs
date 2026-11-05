@@ -20,7 +20,8 @@ async function baixar(url, tentativas = 3) {
       const r = await fetch(url, { headers: { 'User-Agent': UA, 'Accept-Language': 'pt-BR,pt;q=0.9' } });
       if (r.ok) return await r.text();
       if (r.status === 404) return null;
-    } catch {}
+      console.log(`aviso: ${url} respondeu ${r.status} (${r.headers.get('server') || ''})`);
+    } catch (e) { console.log(`aviso: ${url} falhou: ${e.cause?.code || e.message}`); }
     await espera(1500 * (i + 1));
   }
   return null;
