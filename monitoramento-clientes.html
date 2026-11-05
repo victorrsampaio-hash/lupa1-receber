@@ -79,6 +79,12 @@ td.cat{font-size:12px;color:var(--muted)}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;border-radius:12px;padding:12px 16px;font-size:14px;display:flex;gap:14px;align-items:center;box-shadow:0 10px 30px rgba(26,37,64,.3);z-index:10}
 .toast[hidden]{display:none}
 .toast button{all:unset;cursor:pointer;color:#9fd3a2;font-weight:600}
+.link{all:unset;cursor:pointer;font-size:12px;color:var(--blue);margin-top:8px;display:inline-block;text-decoration:underline}
+.cfg-txt{font-size:14px;color:#4a5a78;margin-bottom:10px}
+.cfg-ol{font-size:14px;color:#4a5a78;margin:0 0 14px 20px;line-height:1.7}
+.btn{font:inherit;font-size:14px;font-weight:600;background:var(--blue);color:#fff;border:0;border-radius:10px;padding:9px 16px;cursor:pointer}
+.btn.ghost{background:#fff;color:var(--blue);border:1px solid var(--line)}
+.toast button[hidden]{display:none}
 .err{background:var(--crit-soft);color:var(--crit);border-radius:10px;padding:12px 14px;font-size:14px;margin-bottom:18px}
 @media (max-width:640px){.hide-sm{display:none}.meta{text-align:left}h1{font-size:23px}}
 </style>
@@ -91,6 +97,7 @@ td.cat{font-size:12px;color:var(--muted)}
       <div class="logo">Lupa<span>1</span></div>
       <h1>Monitoramento de Clientes</h1>
       <p class="lede" id="lede">Carregando os dados da última checagem do site...</p>
+      <button class="link" id="cfg-abrir" type="button">Conectar ao GitHub para remover clientes</button>
     </div>
     <div class="meta" id="meta"></div>
   </div>
@@ -145,8 +152,28 @@ td.cat{font-size:12px;color:var(--muted)}
 
   <section class="card" id="removidos" hidden>
     <h2>Clientes removidos do monitoramento (<span id="rem-n">0</span>)</h2>
-    <p class="note">Estes clientes não entram nos números nem nos alertas. A remoção fica salva neste navegador. Clique em Restaurar para voltar a monitorar.</p>
+    <p class="note">Estes clientes saíram do monitoramento para todos: não entram nos números, nos alertas, no dashboard do Claude nem na checagem diária. Clique em Restaurar para voltar a monitorar.</p>
     <ul class="rem-list" id="rem-l"></ul>
+  </section>
+
+  <section class="card cfg" id="config" hidden>
+    <h2>Conectar este aparelho ao GitHub</h2>
+    <p class="note" id="cfg-msg"></p>
+    <p class="cfg-txt">Para o botão Remover gravar no site, o Desk precisa de uma chave de acesso do GitHub. Você faz isso uma vez em cada aparelho (computador, celular). A chave fica guardada só neste navegador.</p>
+    <ol class="cfg-ol">
+      <li>No GitHub, abra <b>Settings</b>, depois <b>Developer settings</b>, <b>Personal access tokens</b>, <b>Fine-grained tokens</b> e clique em <b>Generate new token</b>.</li>
+      <li>Dê um nome (ex.: Lupa1 Desk) e escolha a validade.</li>
+      <li>Em <b>Repository access</b>, marque <b>Only select repositories</b> e escolha <b>lupa1-receber</b>.</li>
+      <li>Em <b>Permissions</b>, procure <b>Contents</b> e coloque <b>Read and write</b>.</li>
+      <li>Clique em <b>Generate token</b>, copie a chave e cole abaixo.</li>
+    </ol>
+    <div class="tools">
+      <input id="cfg-token" type="password" placeholder="Cole aqui a chave (github_pat_...)" aria-label="Chave de acesso do GitHub" autocomplete="off">
+      <button class="btn" id="cfg-salvar" type="button">Conectar</button>
+      <button class="btn ghost" id="cfg-sair" type="button">Desconectar</button>
+      <button class="btn ghost" id="cfg-fechar" type="button">Fechar</button>
+    </div>
+    <p class="cfg-txt" id="cfg-estado"></p>
   </section>
 </div>
 <div class="toast" id="toast" hidden><span id="toast-t"></span><button type="button" id="toast-u">Desfazer</button></div>
@@ -160,37 +187,118 @@ const tira = s => s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
 
 let RES = [], MAT = [], VAR = {}, sel = null, sort = {k:'dias', dir:-1};
-const CHAVE = 'lupa1_monitoramento_removidos';
+const REPO = 'victorrsampaio-hash/lupa1-receber';
+const ARQ_REM = 'dados/monitoramento/removidos.json';
+const CHAVE_TOKEN = 'lupa1_desk_github_token';
+let REMLISTA = [];            // [{cliente_id, cliente, removido_em}] gravado no site
 let REM = new Set();
-try { REM = new Set(JSON.parse(localStorage.getItem(CHAVE) || '[]')); } catch (e) { REM = new Set(); }
-const salvarRem = () => { try { localStorage.setItem(CHAVE, JSON.stringify([...REM])); } catch (e) {} };
+let ocupado = false;
+const lerToken = () => { try { return localStorage.getItem(CHAVE_TOKEN) || ''; } catch (e) { return ''; } };
+const gravarToken = t => { try { t ? localStorage.setItem(CHAVE_TOKEN, t) : localStorage.removeItem(CHAVE_TOKEN); } catch (e) {} };
 const ativos = () => RES.filter(r => !REM.has(r.id));
-let toastTimer = null, ultimoRem = null;
-function remover(r) {
-  REM.add(r.id); salvarRem(); ultimoRem = r.id;
-  if (sel === r.id) { sel = null; detalhe(); }
-  atualizar();
-  document.getElementById('toast-t').textContent = `${r.cliente} removido do monitoramento.`;
+const b64enc = str => { const by = new TextEncoder().encode(str); let bin = ''; for (const b of by) bin += String.fromCharCode(b); return btoa(bin); };
+const b64dec = b64 => new TextDecoder().decode(Uint8Array.from(atob(b64.replace(/\n/g, '')), c => c.charCodeAt(0)));
+
+let toastTimer = null, desfazer = null;
+function aviso(txt, undo) {
+  document.getElementById('toast-t').textContent = txt;
+  const u = document.getElementById('toast-u'); u.hidden = !undo; desfazer = undo || null;
   const t = document.getElementById('toast'); t.hidden = false;
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 6000);
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, undo ? 8000 : 5000);
 }
-function restaurar(id) { REM.delete(id); salvarRem(); atualizar(); }
+
+async function api(method, body) {
+  const r = await fetch(`https://api.github.com/repos/${REPO}/contents/${ARQ_REM}` + (method === 'GET' ? '?ref=main&t=' + Date.now() : ''), {
+    method, headers: {'Authorization': 'Bearer ' + lerToken(), 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28'},
+    body: body ? JSON.stringify(body) : undefined, cache: 'no-store'
+  });
+  if (!r.ok) { const e = new Error(r.status === 401 ? 'chave de acesso inválida ou vencida' : r.status === 403 || r.status === 404 ? 'a chave não tem permissão de gravar neste repositório' : r.status === 409 ? 'conflito' : 'erro ' + r.status); e.status = r.status; throw e; }
+  return r.json();
+}
+
+// Lê a lista atual no GitHub, aplica a mudança e grava. Tenta de novo uma vez se alguém gravou junto.
+async function gravarLista(mudar, msg) {
+  for (let tentativa = 0; tentativa < 2; tentativa++) {
+    const atual = await api('GET');
+    let lista = []; try { lista = JSON.parse(b64dec(atual.content)); } catch (e) { lista = []; }
+    const nova = mudar(lista);
+    try {
+      await api('PUT', {message: msg, content: b64enc(JSON.stringify(nova, null, 1) + '\n'), sha: atual.sha, branch: 'main'});
+      return nova;
+    } catch (e) { if (e.status !== 409 || tentativa) throw e; }
+  }
+}
+
+function aplicarLista(lista) { REMLISTA = lista; REM = new Set(lista.map(x => x.cliente_id)); }
+
+async function remover(r) {
+  if (!lerToken()) { abrirConfig('Para remover clientes de forma definitiva, conecte o Desk ao GitHub uma vez neste aparelho.'); return; }
+  if (ocupado) return; ocupado = true;
+  aviso(`Removendo ${r.cliente}...`);
+  try {
+    const hoje = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
+    const nova = await gravarLista(l => l.some(x => x.cliente_id === r.id) ? l : [...l, {cliente_id: r.id, cliente: r.cliente, removido_em: hoje}], `Remove ${r.cliente} do monitoramento de clientes`);
+    aplicarLista(nova);
+    if (sel === r.id) { sel = null; detalhe(); }
+    atualizar();
+    aviso(`${r.cliente} foi removido do monitoramento, para todos.`, () => restaurar(r.id, r.cliente));
+  } catch (e) { aviso(`Não consegui remover: ${e.message}.`); if (e.status === 401) abrirConfig('A chave salva não funcionou. Cole uma chave nova.'); }
+  ocupado = false;
+}
+
+async function restaurar(id, nome) {
+  if (!lerToken()) { abrirConfig('Para restaurar clientes, conecte o Desk ao GitHub neste aparelho.'); return; }
+  if (ocupado) return; ocupado = true;
+  aviso(`Restaurando ${nome}...`);
+  try {
+    const nova = await gravarLista(l => l.filter(x => x.cliente_id !== id), `Restaura ${nome} no monitoramento de clientes`);
+    aplicarLista(nova); atualizar();
+    aviso(`${nome} voltou ao monitoramento.`);
+  } catch (e) { aviso(`Não consegui restaurar: ${e.message}.`); }
+  ocupado = false;
+}
+
 function removidos() {
   const lista = RES.filter(r => REM.has(r.id)).sort((a, b) => a.cliente.localeCompare(b.cliente, 'pt'));
   document.getElementById('removidos').hidden = !lista.length;
   document.getElementById('rem-n').textContent = lista.length;
   const ul = document.getElementById('rem-l'); ul.replaceChildren();
   for (const r of lista) {
-    const li = el('li'); const n = el('span', null, r.cliente); n.append(el('span', 'cat', r.categoria));
-    const b = el('button', 'rest', 'Restaurar'); b.type = 'button'; b.addEventListener('click', () => restaurar(r.id));
+    const info = REMLISTA.find(x => x.cliente_id === r.id);
+    const li = el('li'); const n = el('span', null, r.cliente); n.append(el('span', 'cat', r.categoria + (info && info.removido_em ? ` · removido em ${dia(info.removido_em)}` : '')));
+    const b = el('button', 'rest', 'Restaurar'); b.type = 'button'; b.addEventListener('click', () => restaurar(r.id, r.cliente));
     li.append(n, b); ul.append(li);
   }
+}
+
+function abrirConfig(msg) {
+  const c = document.getElementById('config'); c.hidden = false;
+  document.getElementById('cfg-msg').textContent = msg || '';
+  document.getElementById('cfg-estado').textContent = lerToken() ? 'Este aparelho já está conectado.' : 'Este aparelho ainda não está conectado.';
+  c.scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+async function salvarConfig() {
+  const t = document.getElementById('cfg-token').value.trim();
+  if (!t) return;
+  gravarToken(t);
+  document.getElementById('cfg-estado').textContent = 'Testando a chave...';
+  try { await api('GET'); document.getElementById('cfg-token').value = ''; document.getElementById('cfg-estado').textContent = 'Conectado. Já pode remover e restaurar clientes neste aparelho.'; document.getElementById('cfg-msg').textContent = ''; }
+  catch (e) { gravarToken(''); document.getElementById('cfg-estado').textContent = `A chave não funcionou: ${e.message}.`; }
 }
 function atualizar() { cabecalho(); tabela(); removidos(); }
 
 async function carregar() {
   const v = `?v=${Date.now()}`;
   const [c, m, s] = await Promise.all(['clientes','materias','varredura'].map(n => fetch(BASE + n + '.json' + v).then(r => { if (!r.ok) throw new Error(n); return r.json(); })));
+  // A lista de removidos é lida direto do GitHub (mais atual que a cópia publicada); se falhar, usa a do site.
+  let rl = null;
+  try {
+    const h = {'Accept': 'application/vnd.github+json'}; if (lerToken()) h.Authorization = 'Bearer ' + lerToken();
+    const rr = await fetch(`https://api.github.com/repos/${REPO}/contents/${ARQ_REM}?ref=main&t=${Date.now()}`, {headers: h, cache: 'no-store'});
+    if (rr.ok) rl = JSON.parse(b64dec((await rr.json()).content));
+  } catch (e) { rl = null; }
+  if (!Array.isArray(rl)) { try { const rr = await fetch(BASE + 'removidos.json' + v); rl = rr.ok ? await rr.json() : []; } catch (e) { rl = []; } }
+  aplicarLista(Array.isArray(rl) ? rl : []);
   MAT = m; VAR = s[0] || {};
   const ref = Date.parse(String(VAR.checado_em || '').slice(0,10));
   RES = c.map(x => {
@@ -277,9 +385,11 @@ for (const th of document.querySelectorAll('th[data-k]')) th.addEventListener('c
   tabela();
 });
 
-document.getElementById('toast-u').addEventListener('click', () => {
-  if (ultimoRem) restaurar(ultimoRem); ultimoRem = null; document.getElementById('toast').hidden = true;
-});
+document.getElementById('toast-u').addEventListener('click', () => { const f = desfazer; desfazer = null; document.getElementById('toast').hidden = true; if (f) f(); });
+document.getElementById('cfg-abrir').addEventListener('click', () => abrirConfig(''));
+document.getElementById('cfg-salvar').addEventListener('click', salvarConfig);
+document.getElementById('cfg-sair').addEventListener('click', () => { gravarToken(''); document.getElementById('cfg-estado').textContent = 'Desconectado deste aparelho.'; });
+document.getElementById('cfg-fechar').addEventListener('click', () => { document.getElementById('config').hidden = true; });
 carregar().then(() => { categorias(); atualizar(); }).catch(e => {
   const er = document.getElementById('erro'); er.hidden = false;
   er.textContent = 'Não foi possível carregar os dados da checagem (' + e.message + '). Tente recarregar a página.';
