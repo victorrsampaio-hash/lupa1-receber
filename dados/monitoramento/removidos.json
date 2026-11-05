@@ -8,5 +8,10 @@
   "cliente_id": "gov-amapa",
   "cliente": "Governo do Amapá",
   "removido_em": "2026-11-05"
+ },
+ {
+  "cliente_id": "paixao-cristo",
+  "cliente": "Paixão de Cristo – Miguel Leão",
+  "removido_em": "2026-11-05"
  }
 ]
