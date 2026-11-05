@@ -68,6 +68,17 @@ td.cat{font-size:12px;color:var(--muted)}
 .det li.prev{opacity:.6}
 .tag{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:1px 6px;margin-left:8px;white-space:nowrap}
 .empty{color:var(--muted);font-size:14px;padding:6px 0}
+.rm{all:unset;cursor:pointer;font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:3px 9px;white-space:nowrap}
+.rm:hover{color:var(--crit);border-color:var(--crit);background:var(--crit-soft)}
+.rest{all:unset;cursor:pointer;font-size:12px;color:var(--blue);border:1px solid var(--line);border-radius:8px;padding:3px 9px;white-space:nowrap}
+.rest:hover{background:var(--blue-soft)}
+.rem-list{list-style:none}
+.rem-list li{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--line-soft);font-size:14px}
+.rem-list li:first-child{border-top:0}
+.rem-list .cat{font-size:12px;color:var(--muted);margin-left:8px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;border-radius:12px;padding:12px 16px;font-size:14px;display:flex;gap:14px;align-items:center;box-shadow:0 10px 30px rgba(26,37,64,.3);z-index:10}
+.toast[hidden]{display:none}
+.toast button{all:unset;cursor:pointer;color:#9fd3a2;font-weight:600}
 .err{background:var(--crit-soft);color:var(--crit);border-radius:10px;padding:12px 14px;font-size:14px;margin-bottom:18px}
 @media (max-width:640px){.hide-sm{display:none}.meta{text-align:left}h1{font-size:23px}}
 </style>
@@ -119,6 +130,7 @@ td.cat{font-size:12px;color:var(--muted)}
           <th data-k="ultima" class="hide-sm"><button type="button">Última matéria</button></th>
           <th data-k="dias" class="num" aria-sort="descending"><button type="button">Dias sem matéria</button></th>
           <th data-k="dias"><button type="button">Alerta</button></th>
+          <th class="num"><span class="sr" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Ações</span></th>
         </tr></thead>
         <tbody id="tb"></tbody>
       </table>
@@ -130,7 +142,14 @@ td.cat{font-size:12px;color:var(--muted)}
     <p class="note">Mais recentes primeiro. A linha esmaecida é a última matéria antes deste mês. "Lista de municípios" marca matérias que citam 10 ou mais municípios clientes de uma vez.</p>
     <div id="det-c"><p class="empty">Clique num cliente na tabela.</p></div>
   </section>
+
+  <section class="card" id="removidos" hidden>
+    <h2>Clientes removidos do monitoramento (<span id="rem-n">0</span>)</h2>
+    <p class="note">Estes clientes não entram nos números nem nos alertas. A remoção fica salva neste navegador. Clique em Restaurar para voltar a monitorar.</p>
+    <ul class="rem-list" id="rem-l"></ul>
+  </section>
 </div>
+<div class="toast" id="toast" hidden><span id="toast-t"></span><button type="button" id="toast-u">Desfazer</button></div>
 
 <script>
 const BASE = 'dados/monitoramento/';
@@ -141,6 +160,33 @@ const tira = s => s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
 
 let RES = [], MAT = [], VAR = {}, sel = null, sort = {k:'dias', dir:-1};
+const CHAVE = 'lupa1_monitoramento_removidos';
+let REM = new Set();
+try { REM = new Set(JSON.parse(localStorage.getItem(CHAVE) || '[]')); } catch (e) { REM = new Set(); }
+const salvarRem = () => { try { localStorage.setItem(CHAVE, JSON.stringify([...REM])); } catch (e) {} };
+const ativos = () => RES.filter(r => !REM.has(r.id));
+let toastTimer = null, ultimoRem = null;
+function remover(r) {
+  REM.add(r.id); salvarRem(); ultimoRem = r.id;
+  if (sel === r.id) { sel = null; detalhe(); }
+  atualizar();
+  document.getElementById('toast-t').textContent = `${r.cliente} removido do monitoramento.`;
+  const t = document.getElementById('toast'); t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 6000);
+}
+function restaurar(id) { REM.delete(id); salvarRem(); atualizar(); }
+function removidos() {
+  const lista = RES.filter(r => REM.has(r.id)).sort((a, b) => a.cliente.localeCompare(b.cliente, 'pt'));
+  document.getElementById('removidos').hidden = !lista.length;
+  document.getElementById('rem-n').textContent = lista.length;
+  const ul = document.getElementById('rem-l'); ul.replaceChildren();
+  for (const r of lista) {
+    const li = el('li'); const n = el('span', null, r.cliente); n.append(el('span', 'cat', r.categoria));
+    const b = el('button', 'rest', 'Restaurar'); b.type = 'button'; b.addEventListener('click', () => restaurar(r.id));
+    li.append(n, b); ul.append(li);
+  }
+}
+function atualizar() { cabecalho(); tabela(); removidos(); }
 
 async function carregar() {
   const v = `?v=${Date.now()}`;
@@ -157,16 +203,20 @@ async function carregar() {
 }
 
 function cabecalho() {
-  const n = f => RES.filter(r => r.f === f).length;
-  document.getElementById('t-total').textContent = RES.reduce((s, r) => s + r.mes, 0);
+  const A = ativos();
+  const n = f => A.filter(r => r.f === f).length;
+  document.getElementById('t-total').textContent = A.reduce((s, r) => s + r.mes, 0);
   for (const f of [0,1,3,7,12]) document.getElementById('t-' + f).textContent = n(f);
-  const alerta = RES.filter(r => r.f >= 3).length;
+  const alerta = A.filter(r => r.f >= 3).length;
   const lede = document.getElementById('lede');
-  lede.replaceChildren(el('b', null, String(alerta)), document.createTextNode(` de ${RES.length} clientes estão há 3 dias ou mais sem matéria no portal.`));
+  lede.replaceChildren(el('b', null, String(alerta)), document.createTextNode(` de ${A.length} clientes estão há 3 dias ou mais sem matéria no portal.`));
   const mes = VAR.mes ? VAR.mes.split('-').reverse().join('/') : '';
   const meta = document.getElementById('meta');
   meta.replaceChildren();
   meta.append('Mês de referência: ', el('b', null, mes), el('br'), 'Última checagem: ', el('b', null, VAR.checado_em ? `${dia(VAR.checado_em)} às ${VAR.checado_em.slice(11,16)}` : '—'), el('br'), el('span', null, `${Number(VAR.artigos_lidos || 0).toLocaleString('pt-BR')} matérias lidas`));
+}
+
+function categorias() {
   const cats = [...new Set(RES.map(r => r.categoria))].sort((a,b) => a.localeCompare(b,'pt'));
   const sc = document.getElementById('fcat');
   for (const c of cats) sc.append(new Option(c, c));
@@ -177,7 +227,7 @@ function tabela() {
   const fc = document.getElementById('fcat').value;
   const ff = document.getElementById('ff').value;
   const val = r => sort.k === 'dias' ? (r.dias == null ? 99999 : r.dias) : sort.k === 'ultima' ? (r.ultima || '') : r[sort.k];
-  const rows = RES.filter(r => (!q || tira(r.cliente).includes(q)) && (!fc || r.categoria === fc) && (!ff || String(r.f) === ff))
+  const rows = ativos().filter(r => (!q || tira(r.cliente).includes(q)) && (!fc || r.categoria === fc) && (!ff || String(r.f) === ff))
     .sort((a, b) => { const x = val(a), y = val(b); return (typeof x === 'number' ? x - y : String(x).localeCompare(String(y),'pt')) * sort.dir || a.cliente.localeCompare(b.cliente,'pt'); });
   const tb = document.getElementById('tb');
   tb.replaceChildren();
@@ -185,10 +235,12 @@ function tabela() {
     const tr = el('tr', sel === r.id ? 'sel' : '');
     tr.append(el('td','cli',r.cliente), el('td','cat hide-sm',r.categoria), el('td','num',String(r.mes)), el('td','hide-sm', r.ultima ? dia(r.ultima) : 'Nenhuma'), el('td','num', r.dias == null ? '—' : String(r.dias)));
     const td = el('td'); td.append(el('span','badge b' + r.f, r.alerta)); tr.append(td);
+    const tdr = el('td','num'); const rb = el('button','rm','Remover'); rb.type = 'button'; rb.title = 'Tirar este cliente do monitoramento';
+    rb.addEventListener('click', ev => { ev.stopPropagation(); remover(r); }); tdr.append(rb); tr.append(tdr);
     tr.addEventListener('click', () => { sel = r.id; tabela(); detalhe(); document.getElementById('det').scrollIntoView({behavior:'smooth', block:'start'}); });
     tb.append(tr);
   }
-  if (!rows.length) { const tr = el('tr'); const td = el('td','empty','Nenhum cliente com esse filtro.'); td.colSpan = 6; tr.append(td); tb.append(tr); }
+  if (!rows.length) { const tr = el('tr'); const td = el('td','empty','Nenhum cliente com esse filtro.'); td.colSpan = 7; tr.append(td); tb.append(tr); }
 }
 
 function detalhe() {
@@ -225,7 +277,10 @@ for (const th of document.querySelectorAll('th[data-k]')) th.addEventListener('c
   tabela();
 });
 
-carregar().then(() => { cabecalho(); tabela(); }).catch(e => {
+document.getElementById('toast-u').addEventListener('click', () => {
+  if (ultimoRem) restaurar(ultimoRem); ultimoRem = null; document.getElementById('toast').hidden = true;
+});
+carregar().then(() => { categorias(); atualizar(); }).catch(e => {
   const er = document.getElementById('erro'); er.hidden = false;
   er.textContent = 'Não foi possível carregar os dados da checagem (' + e.message + '). Tente recarregar a página.';
   document.getElementById('lede').textContent = '';
