@@ -18,5 +18,10 @@
   "cliente_id": "grand-watter",
   "cliente": "Grand Watter Park",
   "removido_em": "2026-11-05"
+ },
+ {
+  "cliente_id": "avelar-ferreira",
+  "cliente": "Avelar Ferreira",
+  "removido_em": "2026-11-05"
  }
 ]
