@@ -10,7 +10,7 @@
   --bg:#edf2fa; --card:#fff; --line:#c8d8f0; --line-soft:#e1e9f6;
   --ink:#1a2540; --muted:#7a90b8; --blue:#1e4a8a; --blue-soft:#e4edf8; --green:#4caf50;
   --ok:#2e8b57; --ok-soft:#e3f3ea; --gray:#8a97ad; --gray-soft:#eef1f6;
-  --warn:#b7791f; --warn-soft:#fbf0dc; --bad:#c2410c; --bad-soft:#fde8dc; --crit:#b42318; --crit-soft:#fbe1df;
+  --yel:#eab308; --yel-ink:#8a6100; --yel-soft:#fdf3c4; --warn:#b7791f; --warn-soft:#fbf0dc; --bad:#c2410c; --bad-soft:#fde8dc; --crit:#b42318; --crit-soft:#fbe1df;
 }
 body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;padding:28px 20px 60px}
 .app{max-width:1160px;margin:0 auto}
@@ -31,8 +31,8 @@ h1{font-size:28px;font-weight:700;color:var(--ink);letter-spacing:-.4px;margin-t
 .tile.on{outline:2px solid var(--blue);outline-offset:1px}
 .tile .l{font-size:12px;color:var(--muted);display:block}
 .tile .v{font-size:30px;font-weight:700;display:block;margin-top:4px;font-variant-numeric:tabular-nums}
-.tile.f0{border-top-color:var(--ok)} .tile.f1{border-top-color:var(--gray)} .tile.f3{border-top-color:var(--warn)}
-.tile.f7{border-top-color:var(--bad)} .tile.f12{border-top-color:var(--crit);background:#fff7f6}
+.tile.f0{border-top-color:var(--ok)} .tile.f1{border-top-color:var(--yel)}
+.tile.f31{border-top-color:var(--crit);background:#fff7f6}
 .tile.tot{cursor:default} .tile.tot:hover{transform:none;box-shadow:none}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:22px}
 .card h2{font-size:16px;font-weight:600}
@@ -56,9 +56,9 @@ td.cli{font-weight:600}
 td.cat{font-size:12px;color:var(--muted)}
 .badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;white-space:nowrap}
 .badge::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
-.b0{color:var(--ok);background:var(--ok-soft)} .b1{color:#5f6b80;background:var(--gray-soft)}
-.b3{color:var(--warn);background:var(--warn-soft)} .b7{color:var(--bad);background:var(--bad-soft)}
-.b12{color:var(--crit);background:var(--crit-soft)}
+.b0{color:var(--ok);background:var(--ok-soft)}
+.b1{color:var(--yel-ink);background:var(--yel-soft)}
+.b31{color:var(--crit);background:var(--crit-soft)}
 .det ul{list-style:none}
 .det li{display:flex;gap:14px;padding:9px 0;border-top:1px solid var(--line-soft);font-size:14px;align-items:baseline}
 .det li:first-child{border-top:0}
@@ -107,10 +107,8 @@ td.cat{font-size:12px;color:var(--muted)}
   <div class="tiles" id="tiles">
     <div class="tile tot"><span class="l">Citações no mês</span><span class="v" id="t-total">—</span></div>
     <button class="tile f0" data-f="0" type="button"><span class="l">Em dia (matéria no dia)</span><span class="v" id="t-0">—</span></button>
-    <button class="tile f1" data-f="1" type="button"><span class="l">1 a 2 dias sem matéria</span><span class="v" id="t-1">—</span></button>
-    <button class="tile f3" data-f="3" type="button"><span class="l">3 a 6 dias sem matéria</span><span class="v" id="t-3">—</span></button>
-    <button class="tile f7" data-f="7" type="button"><span class="l">1 semana (7 a 11 dias)</span><span class="v" id="t-7">—</span></button>
-    <button class="tile f12" data-f="12" type="button"><span class="l">12 dias ou mais</span><span class="v" id="t-12">—</span></button>
+    <button class="tile f1" data-f="1" type="button"><span class="l">De 1 a 30 dias sem matéria</span><span class="v" id="t-1">—</span></button>
+    <button class="tile f31" data-f="31" type="button"><span class="l">Acima de 30 dias sem matéria</span><span class="v" id="t-31">—</span></button>
   </div>
 
   <section class="card">
@@ -122,10 +120,8 @@ td.cat{font-size:12px;color:var(--muted)}
       <select id="ff" aria-label="Alerta">
         <option value="">Todos os alertas</option>
         <option value="0">Em dia</option>
-        <option value="1">1 a 2 dias</option>
-        <option value="3">3 a 6 dias</option>
-        <option value="7">1 semana</option>
-        <option value="12">12 dias ou mais</option>
+        <option value="1">De 1 a 30 dias</option>
+        <option value="31">Acima de 30 dias</option>
       </select>
     </div>
     <div class="scroll">
@@ -180,8 +176,9 @@ td.cat{font-size:12px;color:var(--muted)}
 
 <script>
 const BASE = 'dados/monitoramento/';
-const ROTULO = {0:'Em dia',1:'1 dia sem matéria',3:'3 dias sem matéria',7:'1 semana sem matéria',12:'12 dias ou mais'};
-const faixa = d => d == null ? 12 : d >= 12 ? 12 : d >= 7 ? 7 : d >= 3 ? 3 : d >= 1 ? 1 : 0;
+// Três faixas: em dia (verde), de 1 a 30 dias (amarelo, mostra os dias), acima de 30 dias (vermelho).
+const faixa = d => d == null || d > 30 ? 31 : d >= 1 ? 1 : 0;
+const rotulo = (d, temMateria) => !temMateria ? 'Nenhuma matéria encontrada' : d > 30 ? 'Acima de 30 dias' : d >= 1 ? `${d} ${d === 1 ? 'dia' : 'dias'} sem matéria` : 'Em dia';
 const dia = s => { if (!s) return ''; const [y,m,d] = s.slice(0,10).split('-'); return `${d}/${m}/${y}`; };
 const tira = s => s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
@@ -306,7 +303,7 @@ async function carregar() {
     const ultima = ms.map(a => a.data).sort().pop() || null;
     const dias = ultima ? Math.round((ref - Date.parse(ultima.slice(0,10))) / 864e5) : null;
     const f = faixa(dias);
-    return {id:x.cliente_id, cliente:x.cliente, categoria:x.categoria, mes: ms.filter(a => a.data.slice(0,7) === VAR.mes).length, ultima, dias, f, alerta: ultima ? ROTULO[f] : 'Nenhuma matéria encontrada'};
+    return {id:x.cliente_id, cliente:x.cliente, categoria:x.categoria, mes: ms.filter(a => a.data.slice(0,7) === VAR.mes).length, ultima, dias, f, alerta: rotulo(dias, !!ultima)};
   });
 }
 
@@ -314,10 +311,10 @@ function cabecalho() {
   const A = ativos();
   const n = f => A.filter(r => r.f === f).length;
   document.getElementById('t-total').textContent = A.reduce((s, r) => s + r.mes, 0);
-  for (const f of [0,1,3,7,12]) document.getElementById('t-' + f).textContent = n(f);
-  const alerta = A.filter(r => r.f >= 3).length;
+  for (const f of [0,1,31]) document.getElementById('t-' + f).textContent = n(f);
+  const alerta = A.filter(r => r.f === 31).length; const amarelo = A.filter(r => r.f === 1).length;
   const lede = document.getElementById('lede');
-  lede.replaceChildren(el('b', null, String(alerta)), document.createTextNode(` de ${A.length} clientes estão há 3 dias ou mais sem matéria no portal.`));
+  lede.replaceChildren(el('b', null, String(alerta)), document.createTextNode(` de ${A.length} clientes estão há mais de 30 dias sem matéria no portal, e `), el('b', null, String(amarelo)), document.createTextNode(' estão entre 1 e 30 dias.'));
   const mes = VAR.mes ? VAR.mes.split('-').reverse().join('/') : '';
   const meta = document.getElementById('meta');
   meta.replaceChildren();

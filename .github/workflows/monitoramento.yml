@@ -2,8 +2,10 @@ name: Monitoramento de clientes
 
 on:
   workflow_dispatch:        # botão Atualizar da página
-  schedule:
-    - cron: '40 10 * * *'   # todo dia às 7h40 (horário de Brasília)
+  # O agendamento diário fica desligado até o Cloudflare do lupa1.com.br
+  # liberar o acesso do GitHub (hoje responde 403). Para ligar, descomente:
+  # schedule:
+  #   - cron: '40 10 * * *'   # todo dia às 7h40 (horário de Brasília)
 
 permissions:
   contents: write
