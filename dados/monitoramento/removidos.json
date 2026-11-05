@@ -23,5 +23,10 @@
   "cliente_id": "avelar-ferreira",
   "cliente": "Avelar Ferreira",
   "removido_em": "2026-11-05"
+ },
+ {
+  "cliente_id": "mainha",
+  "cliente": "Mainha",
+  "removido_em": "2026-11-05"
  }
 ]
