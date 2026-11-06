@@ -143,7 +143,7 @@
       <span class="dot" id="statusDot"></span>
       <span class="brand disp">LUPA1 · MONITORAMENTO</span>
     </div>
-    <div class="ts mono"><span id="lastUpdate">Conectando ao banco de dados…</span> · versão 06/11/26 (comparativo mês a mês)</div>
+    <div class="ts mono"><span id="lastUpdate">Conectando ao banco de dados…</span> · versão 06/11/26 (tabela de alcance mês a mês)</div>
     <button id="pdfBtn" class="btn-save" style="padding:6px 14px; font-size:12px;" onclick="gerarPDF()">Gerar PDF</button>
   </div>
 </header>
@@ -526,9 +526,11 @@ function monthlyHtml(){
     return { ...a, cells };
   });
 
+  const metric = monthlyMetric;
+  const tableTitle = metric==='seguidores' ? 'Seguidores' : 'Alcance (visualizações)';
   const tableHtml = `
     <div class="card monthly-table" style="padding:0;">
-      <div class="card-title disp" style="padding:20px 20px 0;">Seguidores por conta — mês a mês</div>
+      <div class="card-title disp" style="padding:20px 20px 0;">${tableTitle} por conta — mês a mês</div>
       <div class="table-scroll" style="padding:16px 20px 20px;">
         <table>
           <thead>
@@ -542,10 +544,10 @@ function monthlyHtml(){
               <tr>
                 <td><span class="platform-dot" style="background:${PLATFORM_COLORS[r.platform]}"></span>${r.label}</td>
                 ${r.cells.map((c,i)=>{
-                  if(!c) return `<td class="right" style="color:var(--muted2)">—</td>`;
-                  const prevCell = i>0 ? r.cells.slice(0,i).reverse().find(x=>x) : null;
-                  const g = prevCell ? growth(c.seguidores, prevCell.seguidores) : null;
-                  return `<td class="right mono">${formatNumber(c.seguidores)}${g ? `<br>${growthHtml(g)}` : ''}</td>`;
+                  if(!c || c[metric]===null || c[metric]===undefined) return `<td class="right" style="color:var(--muted2)">—</td>`;
+                  const prevCell = i>0 ? r.cells.slice(0,i).reverse().find(x=>x && x[metric]!==null && x[metric]!==undefined) : null;
+                  const g = prevCell ? growth(c[metric], prevCell[metric]) : null;
+                  return `<td class="right mono">${formatNumber(c[metric])}${g ? `<br>${growthHtml(g)}` : ''}</td>`;
                 }).join('')}
               </tr>`).join('')}
           </tbody>
@@ -808,7 +810,7 @@ async function gerarPDF(){
     const pages = [{ title:'Visão Geral', tab:'overview' }];
     if(allMonthKeys().length > 0){
       pages.push({ title:'Comparativo Mensal — Seguidores', tab:'monthly', metric:'seguidores' });
-      pages.push({ title:'Comparativo Mensal — Alcance', tab:'monthly', metric:'alcance', hideTable:true });
+      pages.push({ title:'Comparativo Mensal — Alcance', tab:'monthly', metric:'alcance' });
     }
 
     const { jsPDF } = window.jspdf;
