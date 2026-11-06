@@ -91,6 +91,17 @@
   .net-labels{display:flex; gap:10px; margin-top:6px;}
   .net-labels span{flex:1; text-align:center; font-size:11px; color:var(--muted); min-width:0;}
   .net-note{font-size:12px; color:var(--muted2); margin:-8px 0 20px;}
+  .cmp-row{display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:14px; margin-bottom:28px;}
+  .cmp-card{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 20px;}
+  .cmp-top{display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:12px;}
+  .cmp-pct{font-family:'JetBrains Mono',monospace; font-size:34px; font-weight:700; line-height:1.1;}
+  .cmp-pct.up{color:var(--green);} .cmp-pct.down{color:var(--red);}
+  .cmp-abs{font-size:13px; color:var(--muted);}
+  .cmp-line{display:flex; justify-content:space-between; gap:12px; padding:8px 0; border-top:1px solid var(--border); font-size:13px;}
+  .cmp-line b{font-family:'JetBrains Mono',monospace; font-size:15px; color:var(--text);}
+  .cmp-line span small{display:block; color:var(--muted2); font-size:11px;}
+  .cmp-note{margin-top:8px; padding-top:8px; border-top:1px dashed var(--border); font-size:12px; color:var(--muted);}
+  @media (max-width: 640px){ .cmp-row{grid-template-columns:1fr;} .cmp-pct{font-size:28px;} }
 
   body.pdf-export{
     --bg:#FFFFFF; --surface:#F4F5F7; --surface2:#E8EAED; --border:#D3D7DD;
@@ -132,7 +143,7 @@
       <span class="dot" id="statusDot"></span>
       <span class="brand disp">LUPA1 · MONITORAMENTO</span>
     </div>
-    <div class="ts mono"><span id="lastUpdate">Conectando ao banco de dados…</span> · versão 14/10/26 (cartões por rede)</div>
+    <div class="ts mono"><span id="lastUpdate">Conectando ao banco de dados…</span> · versão 06/11/26 (comparativo mês a mês)</div>
     <button id="pdfBtn" class="btn-save" style="padding:6px 14px; font-size:12px;" onclick="gerarPDF()">Gerar PDF</button>
   </div>
 </header>
@@ -162,12 +173,13 @@ const COLECAO = 'social-monitoramento';
 
 const ACCOUNTS = [
   { id:'ig_portal',   platform:'Instagram', handle:'@PORTALLUPA1',        label:'Portal Lupa1' },
-  { id:'ig_noticias', platform:'Instagram', handle:'@tv.lupa1',          label:'Lupa1 Notícias' },
+  { id:'ig_noticias', platform:'Instagram', handle:'@tv.lupa1',          label:'TV Lupa1' },
   { id:'ig_cidades',  platform:'Instagram', handle:'@LUPA1CIDADES',       label:'Lupa1 Cidades' },
   { id:'ig_tvamapa',  platform:'Instagram', handle:'@TVLUPA1AMAPA',       label:'TV Lupa1 Amapá' },
   { id:'ig_podcosta', platform:'Instagram', handle:'@PODCOSTATHE',        label:'PodCosta The' },
   { id:'ig_tony',     platform:'Instagram', handle:'@TONY_TRINDADE',      label:'Tony Trindade' },
   { id:'ig_thiago',   platform:'Instagram', handle:'@THIAGOTRINDADE',     label:'Thiago Trindade' },
+  { id:'ig_boatarde', platform:'Instagram', handle:'@boatardebr',         label:'Boa Tarde BR' },
   { id:'tt_lupa1',    platform:'TikTok',    handle:'@lupa1tvradioportal', label:'Lupa1 TV Rádio Portal' },
   { id:'kw_lupa1',    platform:'Kwai',      handle:'@Lupa1.oficial',      label:'Lupa1 Oficial' },
   { id:'x_lupa1',     platform:'X',         handle:'@canalLupa1',        label:'Canal Lupa1' },
@@ -198,7 +210,7 @@ function growthHtml(g){
   if(!g || g.abs===null) return '<span class="growth-none">sem histórico</span>';
   const positive = g.abs >= 0;
   const cls = positive ? 'growth-up' : 'growth-down';
-  const pctStr = g.pct!==null ? ` (${g.pct>=0?'+':''}${g.pct.toFixed(1)}%)` : '';
+  const pctStr = g.pct!==null ? ` (${g.pct>=0?'+':''}${fmtPct(g.pct)}%)` : '';
   return `<span class="mono ${cls}">${positive?'▲':'▼'} ${formatNumber(Math.abs(g.abs))}${pctStr}</span>`;
 }
 
@@ -308,6 +320,7 @@ function overviewHtml(){
       <div class="stat-card"><div class="stat-label">Alcance (soma)</div><div class="stat-value disp mono" style="color:var(--blue)">${formatNumber(alcance)}</div></div>
       <div class="stat-card"><div class="stat-label">Maior crescimento</div><div class="stat-value disp">${topGainer? topGainer.label : '—'}</div><div class="stat-sub">${topGainer? growthHtml(topGainer.growth) : 'aguardando 2+ lançamentos'}</div></div>
     </div>
+    <div class="cmp-row">${compareCardHtml('Visualizações — mês passado x mês atual','alcance')}${compareCardHtml('Seguidores — mês passado x mês atual','seguidores')}</div>
     ${barData.length>0 ? `
       <div class="card"><div class="card-title disp">Visualizações (alcance) por conta</div><canvas id="overviewChartAlcance" height="${Math.max(220, barData.length*34)}"></canvas></div>
       <div class="card"><div class="card-title disp">Seguidores por conta</div><canvas id="overviewChart" height="${Math.max(220, barData.length*34)}"></canvas></div>
@@ -442,6 +455,62 @@ function mountPlatformCharts(platform){
     });
     charts.push(chart);
   }
+}
+
+function fmtPct(p){ return Number(p).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}); }
+
+function monthTotal(monthKey, field){
+  let sum=0, n=0, last=null; const ids=new Set();
+  ACCOUNTS.forEach(a=>{
+    const e = entryForMonth(a.id, monthKey);
+    if(e && e[field]!==null && e[field]!==undefined){
+      sum += e[field]; n++; ids.add(a.id);
+      if(!last || e.date>last) last = e.date;
+    }
+  });
+  return { sum, n, last, ids };
+}
+
+function monthCompare(field){
+  const months = allMonthKeys();
+  if(months.length < 2) return null;
+  const cur = months[months.length-1], prev = months[months.length-2];
+  const c = monthTotal(cur, field), p = monthTotal(prev, field);
+  if(!c.n || !p.n) return null;
+  let cs=0, ps=0, common=0;
+  c.ids.forEach(id=>{
+    if(p.ids.has(id)){ cs += entryForMonth(id,cur)[field]; ps += entryForMonth(id,prev)[field]; common++; }
+  });
+  return { cur, prev, c, p, g: growth(c.sum, p.sum), gc: common ? growth(cs, ps) : null, common,
+           same: c.ids.size===common && p.ids.size===common };
+}
+
+function pctBadge(g){
+  if(!g || g.pct===null) return { cls:'', txt:'—' };
+  const up = g.abs >= 0;
+  return { cls: up?'up':'down', txt: `${up?'▲ +':'▼ -'}${fmtPct(Math.abs(g.pct))}%` };
+}
+
+function compareCardHtml(title, field){
+  const r = monthCompare(field);
+  if(!r){
+    return `<div class="cmp-card"><div class="stat-label">${title}</div><div class="stat-sub">Precisa de lançamentos em dois meses diferentes para comparar.</div></div>`;
+  }
+  const curL = formatMonthLabel(r.cur), prevL = formatMonthLabel(r.prev);
+  const b = pctBadge(r.g);
+  const absTxt = r.g ? `${r.g.abs>=0?'+':'-'}${formatNumber(Math.abs(r.g.abs))}` : '';
+  let note = `${r.c.n} conta${r.c.n===1?'':'s'} com dado em ${curL} · ${r.p.n} em ${prevL}`;
+  if(!r.same && r.gc){
+    const bc = pctBadge(r.gc);
+    note += `<br>Só nas ${r.common} contas que aparecem nos dois meses: <b style="color:var(--${r.gc.abs>=0?'green':'red'})">${bc.txt.replace('▲ ','').replace('▼ ','')}</b>`;
+  }
+  return `<div class="cmp-card">
+    <div class="stat-label">${title}</div>
+    <div class="cmp-top"><span class="cmp-pct ${b.cls}">${b.txt}</span><span class="cmp-abs">${absTxt} em relação a ${prevL}</span></div>
+    <div class="cmp-line"><span>Mês passado (${prevL})<small>dados até ${formatDate(r.p.last)}</small></span><b>${formatNumber(r.p.sum)}</b></div>
+    <div class="cmp-line"><span>Mês atual (${curL})<small>dados até ${formatDate(r.c.last)}</small></span><b>${formatNumber(r.c.sum)}</b></div>
+    <div class="cmp-note">${note}</div>
+  </div>`;
 }
 
 function monthlyHtml(){
@@ -593,7 +662,7 @@ function entryHtml(){
         Exemplo: <span class="mono">Instagram, @PORTALLUPA1, 2026-08-05, 157071, 28989743</span>
       </div>
       <textarea id="bulkText" rows="8" style="width:100%; background:#0F1319; border:1px solid var(--border); border-radius:8px; padding:10px 12px; color:var(--text); font-size:13px;" placeholder="Instagram, @PORTALLUPA1, 2026-08-05, 157071, 28989743
-Instagram, @LUPA1NOTICIAS, 2026-08-05, 73547, 25403661"></textarea>
+Instagram, @tv.lupa1, 2026-08-05, 73547, 25403661"></textarea>
       <div style="margin-top:12px; display:flex; align-items:center; gap:12px;">
         <button class="btn-save" onclick="bulkImport()">Importar lote</button>
         <span id="bulkMsg" style="font-size:13px;"></span>
