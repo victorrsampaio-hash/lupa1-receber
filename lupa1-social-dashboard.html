@@ -143,7 +143,7 @@
       <span class="dot" id="statusDot"></span>
       <span class="brand disp">LUPA1 · MONITORAMENTO</span>
     </div>
-    <div class="ts mono"><span id="lastUpdate">Conectando ao banco de dados…</span> · versão 06/11/26 (tabela de alcance mês a mês)</div>
+    <div class="ts mono"><span id="lastUpdate">Conectando ao banco de dados…</span> · versão 06/11/26 (correção alcance sem dado)</div>
     <button id="pdfBtn" class="btn-save" style="padding:6px 14px; font-size:12px;" onclick="gerarPDF()">Gerar PDF</button>
   </div>
 </header>
@@ -251,14 +251,14 @@ function allMonthKeys(){
   ACCOUNTS.forEach(a=> sortedDates(a.id).forEach(d=> set.add(d.slice(0,7))));
   return Array.from(set).sort();
 }
-function entryForMonth(accId, monthKey){
-  const ds = sortedDates(accId).filter(d=>d.slice(0,7)===monthKey);
+function entryForMonth(accId, monthKey, field){
+  const ds = sortedDates(accId).filter(d=>d.slice(0,7)===monthKey && (!field || entries[accId][d][field]!=null));
   if(!ds.length) return null;
   const d = ds[ds.length-1];
   return { date:d, ...entries[accId][d] };
 }
 function valueAtOrBeforeMonth(accId, monthKey, field){
-  const ds = sortedDates(accId).filter(d=>d.slice(0,7) <= monthKey);
+  const ds = sortedDates(accId).filter(d=>d.slice(0,7) <= monthKey && entries[accId][d][field]!=null);
   if(!ds.length) return null;
   const d = ds[ds.length-1];
   return entries[accId][d][field];
@@ -300,7 +300,8 @@ function overviewRows(){
     const curr = latestEntry(a.id);
     const prev = previousEntry(a.id);
     const g = curr && prev ? growth(curr.seguidores, prev.seguidores) : null;
-    const gAlcance = curr && prev ? growth(curr.alcance, prev.alcance) : null;
+    const al = sortedDates(a.id).filter(d=>entries[a.id][d].alcance!=null);
+    const gAlcance = al.length>=2 ? growth(entries[a.id][al[al.length-1]].alcance, entries[a.id][al[al.length-2]].alcance) : null;
     return { ...a, curr, prev, growth:g, growthAlcance:gAlcance };
   });
 }
@@ -462,7 +463,7 @@ function fmtPct(p){ return Number(p).toLocaleString('pt-BR',{minimumFractionDigi
 function monthTotal(monthKey, field){
   let sum=0, n=0, last=null; const ids=new Set();
   ACCOUNTS.forEach(a=>{
-    const e = entryForMonth(a.id, monthKey);
+    const e = entryForMonth(a.id, monthKey, field);
     if(e && e[field]!==null && e[field]!==undefined){
       sum += e[field]; n++; ids.add(a.id);
       if(!last || e.date>last) last = e.date;
@@ -479,7 +480,7 @@ function monthCompare(field){
   if(!c.n || !p.n) return null;
   let cs=0, ps=0, common=0;
   c.ids.forEach(id=>{
-    if(p.ids.has(id)){ cs += entryForMonth(id,cur)[field]; ps += entryForMonth(id,prev)[field]; common++; }
+    if(p.ids.has(id)){ cs += entryForMonth(id,cur,field)[field]; ps += entryForMonth(id,prev,field)[field]; common++; }
   });
   return { cur, prev, c, p, g: growth(c.sum, p.sum), gc: common ? growth(cs, ps) : null, common,
            same: c.ids.size===common && p.ids.size===common };
@@ -522,7 +523,7 @@ function monthlyHtml(){
   const monthLabels = months.map(formatMonthLabel);
 
   const rows = ACCOUNTS.map(a=>{
-    const cells = months.map(m => entryForMonth(a.id, m));
+    const cells = months.map(m => entryForMonth(a.id, m, monthlyMetric));
     return { ...a, cells };
   });
 
@@ -570,7 +571,7 @@ function monthlyHtml(){
       return sum;
     });
     if(series.every(v=>v===null)) return '';
-    const real = months.map(m=> accs.some(a=>entryForMonth(a.id,m)));
+    const real = months.map(m=> accs.some(a=>entryForMonth(a.id,m,monthlyMetric)));
     const realIdx = real.map((r,i)=>r?i:-1).filter(i=>i>=0);
     const lastIdx = series.length-1;
     const lastReal = realIdx.length ? realIdx[realIdx.length-1] : -1;
