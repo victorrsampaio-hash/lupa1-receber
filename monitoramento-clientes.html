@@ -345,6 +345,25 @@ async function adicionar() {
   ocupado = false;
 }
 
+// Usado pela checagem diária do Claude, que roda no Chrome deste aparelho: grava os resultados
+// no site com a mesma conexão ao GitHub usada pelos botões. Retorna 'ok' ou a mensagem de erro.
+window.lxGravarDados = async (materias, varredura) => {
+  if (!lerToken()) return 'sem conexão com o GitHub neste navegador';
+  if (!Array.isArray(materias) || !Array.isArray(varredura) || !varredura[0] || !varredura[0].checado_em) return 'dados inválidos';
+  const dia = String(varredura[0].checado_em).slice(0, 10);
+  try {
+    for (const [nome, dados] of [['materias.json', materias], ['varredura.json', varredura]]) {
+      const arq = 'dados/monitoramento/' + nome;
+      for (let tentativa = 0; tentativa < 2; tentativa++) {
+        const atual = await api('GET', null, arq);
+        try { await api('PUT', {message: `Checagem diária do monitoramento de clientes (${dia})`, content: b64enc(JSON.stringify(dados) + '\n'), sha: atual.sha, branch: 'main'}, arq); break; }
+        catch (e) { if (e.status !== 409 || tentativa) throw e; }
+      }
+    }
+    return 'ok';
+  } catch (e) { return e.message; }
+};
+
 async function salvarConfig() {
   const t = document.getElementById('cfg-token').value.trim();
   if (!t) return;
