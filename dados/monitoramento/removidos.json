@@ -48,5 +48,10 @@
   "cliente_id": "fabio-abreu",
   "cliente": "Fábio Abreu",
   "removido_em": "2026-11-12"
+ },
+ {
+  "cliente_id": "rubens-vieira",
+  "cliente": "Rubens Vieira",
+  "removido_em": "2026-11-12"
  }
 ]
