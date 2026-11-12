@@ -43,5 +43,10 @@
   "cliente_id": "gov-piaui",
   "cliente": "Governo do Piauí (Portal e Rádio Lupa1)",
   "removido_em": "2026-11-05"
+ },
+ {
+  "cliente_id": "fabio-abreu",
+  "cliente": "Fábio Abreu",
+  "removido_em": "2026-11-12"
  }
 ]
