@@ -94,6 +94,39 @@ td.cat{font-size:12px;color:var(--muted)}
 .addhint{font-size:12px;color:var(--muted);margin-bottom:10px}
 @media (max-width:640px){.addgrid{grid-template-columns:1fr}}
 .novo{font-size:11px;font-weight:600;color:var(--blue);background:var(--blue-soft);border-radius:6px;padding:1px 6px;margin-left:8px}
+.topr{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+@media (max-width:640px){.topr{align-items:flex-start}}
+#pdf{display:none}
+@media print{
+  @page{size:A4;margin:14mm 12mm}
+  body{background:#fff;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .app,.toast{display:none!important}
+  #pdf{display:block;font-family:'Segoe UI',system-ui,sans-serif;color:#1a2540;font-size:10.5pt}
+  #pdf h1{font-size:18pt;margin:0 0 2pt}
+  #pdf .pl{font-size:10pt;font-weight:800;color:#1e4a8a} #pdf .pl span{color:#4caf50}
+  #pdf .pm{color:#5a6a85;font-size:9.5pt;margin-bottom:10pt}
+  #pdf .pk{display:flex;gap:8pt;margin:8pt 0 12pt}
+  #pdf .pk div{flex:1;border:1px solid #c8d8f0;border-top:3pt solid #1e4a8a;border-radius:6pt;padding:6pt 8pt}
+  #pdf .pk .g{border-top-color:#2e8b57} #pdf .pk .y{border-top-color:#eab308} #pdf .pk .r{border-top-color:#b42318}
+  #pdf .pk span{display:block;font-size:8.5pt;color:#5a6a85} #pdf .pk b{font-size:16pt}
+  #pdf h2{font-size:12pt;margin:12pt 0 6pt;color:#1e4a8a}
+  #pdf h2{break-after:avoid} #pdf h2.nova{break-before:page;margin-top:0}
+  #pdf table{width:100%;border-collapse:collapse;font-size:9.5pt}
+  #pdf th{background:#e4edf8;color:#1e4a8a;text-align:left;padding:4pt 6pt;font-size:8.5pt;text-transform:uppercase}
+  #pdf td{padding:4pt 6pt;border-top:1px solid #e1e9f6;vertical-align:top}
+  #pdf thead{display:table-header-group} #pdf tr{break-inside:avoid}
+  #pdf .n{text-align:right}
+  #pdf .s0{color:#2e8b57;font-weight:600} #pdf .s1{color:#8a6100;font-weight:600} #pdf .s31{color:#b42318;font-weight:600}
+  #pdf .cl{break-inside:avoid;border-top:1px solid #c8d8f0;padding:6pt 0}
+  #pdf .cl h3{font-size:10.5pt;margin:0 0 3pt;display:flex;justify-content:space-between;gap:8pt}
+  #pdf .cl ul{margin:0;padding-left:0;list-style:none}
+  #pdf .cl li{font-size:9pt;margin:1.5pt 0;display:flex;gap:8pt}
+  #pdf .cl li .d{color:#5a6a85;white-space:nowrap;min-width:72pt}
+  #pdf .cl li.prev{color:#7a8aa5}
+  #pdf .cl .vz{font-size:9pt;color:#7a8aa5}
+  #pdf a{color:#1a2540;text-decoration:none}
+  #pdf .rod{margin-top:12pt;font-size:8.5pt;color:#7a8aa5}
+}
 .err{background:var(--crit-soft);color:var(--crit);border-radius:10px;padding:12px 14px;font-size:14px;margin-bottom:18px}
 @media (max-width:640px){.hide-sm{display:none}.meta{text-align:left}h1{font-size:23px}}
 </style>
@@ -108,7 +141,10 @@ td.cat{font-size:12px;color:var(--muted)}
       <p class="lede" id="lede">Carregando os dados da última checagem do site...</p>
       <button class="link" id="cfg-abrir" type="button">Conectar ao GitHub para remover clientes</button>
     </div>
-    <div class="meta" id="meta"></div>
+    <div class="topr">
+      <div class="meta" id="meta"></div>
+      <button class="btn" id="pdf-btn" type="button">Gerar PDF</button>
+    </div>
   </div>
 
   <div id="erro" class="err" hidden></div>
@@ -132,6 +168,14 @@ td.cat{font-size:12px;color:var(--muted)}
         <option value="1">De 1 a 30 dias</option>
         <option value="31">Acima de 30 dias</option>
       </select>
+      <select id="ord" aria-label="Ordenar por">
+        <option value="dias">Ordenar por: dias sem matéria</option>
+        <option value="cliente">Ordenar por: nome do cliente</option>
+        <option value="mes">Ordenar por: matérias no mês</option>
+        <option value="ultima">Ordenar por: última matéria</option>
+        <option value="categoria">Ordenar por: categoria</option>
+      </select>
+      <button class="btn ghost" id="dir" type="button">Decrescente &#8595;</button>
       <button class="btn" id="add-abrir" type="button">+ Adicionar cliente</button>
     </div>
     <div class="addbox" id="addbox" hidden>
@@ -197,6 +241,7 @@ td.cat{font-size:12px;color:var(--muted)}
     <p class="cfg-txt" id="cfg-estado"></p>
   </section>
 </div>
+<div id="pdf" aria-hidden="true"></div>
 <div class="toast" id="toast" hidden><span id="toast-t"></span><button type="button" id="toast-u">Desfazer</button></div>
 
 <script>
@@ -419,13 +464,27 @@ function categorias() {
   for (const c of cats) sc.append(new Option(c, c));
 }
 
+function ordenar(lista) {
+  const val = r => sort.k === 'dias' ? (r.dias == null ? 99999 : r.dias) : sort.k === 'ultima' ? (r.ultima || '') : r[sort.k];
+  return lista.sort((a, b) => { const x = val(a), y = val(b); return (typeof x === 'number' ? x - y : String(x).localeCompare(String(y),'pt')) * sort.dir || a.cliente.localeCompare(b.cliente,'pt'); });
+}
+
+// Mantém os controles de ordem, os cabeçalhos da tabela e a ordem atual iguais
+function mostrarOrdem() {
+  document.getElementById('ord').value = sort.k;
+  const b = document.getElementById('dir');
+  b.textContent = sort.dir === 1 ? 'Crescente \u2191' : 'Decrescente \u2193';
+  b.setAttribute('aria-label', sort.dir === 1 ? 'Ordem crescente. Clique para decrescente' : 'Ordem decrescente. Clique para crescente');
+  for (const o of document.querySelectorAll('th[data-k]')) o.removeAttribute('aria-sort');
+  const th = document.querySelector(`th[data-k="${sort.k}"]`);
+  if (th) th.setAttribute('aria-sort', sort.dir === 1 ? 'ascending' : 'descending');
+}
+
 function tabela() {
   const q = tira(document.getElementById('q').value);
   const fc = document.getElementById('fcat').value;
   const ff = document.getElementById('ff').value;
-  const val = r => sort.k === 'dias' ? (r.dias == null ? 99999 : r.dias) : sort.k === 'ultima' ? (r.ultima || '') : r[sort.k];
-  const rows = ativos().filter(r => (!q || tira(r.cliente).includes(q)) && (!fc || r.categoria === fc) && (!ff || String(r.f) === ff))
-    .sort((a, b) => { const x = val(a), y = val(b); return (typeof x === 'number' ? x - y : String(x).localeCompare(String(y),'pt')) * sort.dir || a.cliente.localeCompare(b.cliente,'pt'); });
+  const rows = ordenar(ativos().filter(r => (!q || tira(r.cliente).includes(q)) && (!fc || r.categoria === fc) && (!ff || String(r.f) === ff)));
   const tb = document.getElementById('tb');
   tb.replaceChildren();
   for (const r of rows) {
@@ -470,11 +529,68 @@ for (const t of document.querySelectorAll('.tile[data-f]')) t.addEventListener('
 for (const th of document.querySelectorAll('th[data-k]')) th.addEventListener('click', () => {
   const k = th.dataset.k;
   sort = sort.k === k ? {k, dir:-sort.dir} : {k, dir: (k === 'cliente' || k === 'categoria') ? 1 : -1};
-  for (const o of document.querySelectorAll('th[data-k]')) o.removeAttribute('aria-sort');
-  th.setAttribute('aria-sort', sort.dir === 1 ? 'ascending' : 'descending');
-  tabela();
+  mostrarOrdem(); tabela();
 });
 
+const ROT_ORD = {dias: 'dias sem matéria', cliente: 'nome do cliente', mes: 'matérias no mês', ultima: 'última matéria', categoria: 'categoria'};
+
+// Monta a versão para impressão com tudo: resumo, tabela de todos os clientes ativos e as matérias de cada um,
+// na ordem escolhida na tela, e abre a janela de impressão (Salvar como PDF).
+function gerarPDF() {
+  const A = ordenar(ativos().slice());
+  const p = document.getElementById('pdf'); p.replaceChildren();
+  const hoje = new Date();
+  const dd = n => String(n).padStart(2, '0');
+  const geradoEm = `${dd(hoje.getDate())}/${dd(hoje.getMonth() + 1)}/${hoje.getFullYear()} às ${dd(hoje.getHours())}:${dd(hoje.getMinutes())}`;
+  const logo = el('div', 'pl', 'Lupa'); logo.append(el('span', null, '1'));
+  p.append(logo, el('h1', null, 'Monitoramento de Clientes'));
+  const mes = VAR.mes ? VAR.mes.split('-').reverse().join('/') : '';
+  p.append(el('div', 'pm', `Mês de referência: ${mes} · Última checagem do site: ${VAR.checado_em ? dia(VAR.checado_em) + ' às ' + VAR.checado_em.slice(11, 16) : '—'} · ${Number(VAR.artigos_lidos || 0).toLocaleString('pt-BR')} matérias lidas · Gerado em ${geradoEm}`));
+  const n = f => A.filter(r => r.f === f).length;
+  const k = el('div', 'pk');
+  for (const [cls, rot, v] of [['', 'Clientes monitorados', A.length], ['', 'Citações no mês', A.reduce((s, r) => s + r.mes, 0)], ['g', 'Em dia', n(0)], ['y', 'De 1 a 30 dias sem matéria', n(1)], ['r', 'Acima de 30 dias sem matéria', n(31)]]) {
+    const d = el('div', cls); d.append(el('span', null, rot), el('b', null, String(v))); k.append(d);
+  }
+  p.append(k);
+  p.append(el('h2', null, `Clientes (ordenados por ${ROT_ORD[sort.k]}, ${sort.dir === 1 ? 'crescente' : 'decrescente'})`));
+  const t = el('table'); const th = el('thead'); const trh = el('tr');
+  for (const [h, c] of [['Cliente'], ['Categoria'], ['Matérias no mês', 'n'], ['Última matéria'], ['Dias sem matéria', 'n'], ['Alerta']]) trh.append(el('th', c || null, h));
+  th.append(trh); t.append(th);
+  const tb = el('tbody');
+  for (const r of A) {
+    const tr = el('tr');
+    tr.append(el('td', null, r.cliente), el('td', null, r.categoria), el('td', 'n', String(r.mes)), el('td', null, r.ultima ? dia(r.ultima) : 'Nenhuma'), el('td', 'n', r.dias == null ? '—' : String(r.dias)), el('td', 's' + r.f, r.alerta));
+    tb.append(tr);
+  }
+  t.append(tb); p.append(t);
+  p.append(el('h2', 'nova', 'Matérias de cada cliente'));
+  for (const r of A) {
+    const box = el('div', 'cl');
+    const h = el('h3'); h.append(el('span', null, r.cliente), el('span', 's' + r.f, r.alerta)); box.append(h);
+    const ms = MAT.filter(m => m.cliente_id === r.id).sort((a, b) => b.data.localeCompare(a.data));
+    if (!ms.length) box.append(el('div', 'vz', 'Nenhuma matéria encontrada no site.'));
+    else {
+      const ul = el('ul');
+      for (const m of ms) {
+        const li = el('li', m.data.slice(0, 7) !== VAR.mes ? 'prev' : '');
+        const a = el('a', null, m.titulo + (String(m.lista) === '1' ? ' (lista de municípios)' : '')); a.href = m.link;
+        li.append(el('span', 'd', `${dia(m.data)} ${m.data.slice(11, 16)}`), a); ul.append(li);
+      }
+      box.append(ul);
+    }
+    p.append(box);
+  }
+  p.append(el('div', 'rod', 'Matérias em cinza são a última publicação antes do mês de referência. Fonte: lupa1.com.br, checagem automática do Lupa1 Desk.'));
+  const tituloAntes = document.title;
+  document.title = `Monitoramento de Clientes Lupa1 - ${dd(hoje.getDate())}-${dd(hoje.getMonth() + 1)}-${hoje.getFullYear()}`;
+  const volta = () => { document.title = tituloAntes; window.removeEventListener('afterprint', volta); };
+  window.addEventListener('afterprint', volta);
+  window.print();
+}
+
+document.getElementById('pdf-btn').addEventListener('click', () => { if (!RES.length) { aviso('Espere os dados carregarem.'); return; } gerarPDF(); });
+document.getElementById('ord').addEventListener('change', e => { const k = e.target.value; sort = {k, dir: (k === 'cliente' || k === 'categoria') ? 1 : -1}; mostrarOrdem(); tabela(); });
+document.getElementById('dir').addEventListener('click', () => { sort = {k: sort.k, dir: -sort.dir}; mostrarOrdem(); tabela(); });
 document.getElementById('toast-u').addEventListener('click', () => { const f = desfazer; desfazer = null; document.getElementById('toast').hidden = true; if (f) f(); });
 document.getElementById('cfg-abrir').addEventListener('click', () => abrirConfig(''));
 document.getElementById('add-abrir').addEventListener('click', () => { const b = document.getElementById('addbox'); b.hidden = !b.hidden; if (!b.hidden) document.getElementById('add-nome').focus(); });
@@ -484,7 +600,7 @@ document.getElementById('add-nome').addEventListener('keydown', e => { if (e.key
 document.getElementById('cfg-salvar').addEventListener('click', salvarConfig);
 document.getElementById('cfg-sair').addEventListener('click', () => { gravarToken(''); document.getElementById('cfg-estado').textContent = 'Desconectado deste aparelho.'; });
 document.getElementById('cfg-fechar').addEventListener('click', () => { document.getElementById('config').hidden = true; });
-carregar().then(() => { categorias(); atualizar(); }).catch(e => {
+carregar().then(() => { categorias(); mostrarOrdem(); atualizar(); }).catch(e => {
   const er = document.getElementById('erro'); er.hidden = false;
   er.textContent = 'Não foi possível carregar os dados da checagem (' + e.message + '). Tente recarregar a página.';
   document.getElementById('lede').textContent = '';
