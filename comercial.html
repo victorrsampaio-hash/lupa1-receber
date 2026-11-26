@@ -324,6 +324,9 @@ textarea{resize:vertical;min-height:60px}
   <button class="drawer-item" id="dnav-politicos" onclick="goTab('politicos',this);fecharDrawer()">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Políticos
   </button>
+  <button class="drawer-item" id="dnav-diretores" onclick="goTab('diretores',this);fecharDrawer()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Diretores de Vendas
+  </button>
   <button class="drawer-item" id="dnav-mapa" onclick="goTab('mapa',this);fecharDrawer()">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg> Mapa PI
   </button>
@@ -421,6 +424,10 @@ textarea{resize:vertical;min-height:60px}
     <div class="nav-item" onclick="goTab('politicos',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       Políticos
+    </div>
+    <div class="nav-item" onclick="goTab('diretores',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Diretores de Vendas
     </div>
     <div class="nav-item" onclick="goTab('mapa',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
@@ -765,6 +772,14 @@ textarea{resize:vertical;min-height:60px}
 </div>
 
 <!-- MAPA 3D -->
+<div id="tab-diretores" class="section">
+  <div class="page-header">
+    <div><div class="page-title">Diretores de Vendas</div><div class="page-sub">Comissão sobre o que foi recebido com nota fiscal: desconta a dedução e aplica o percentual de cada diretor</div></div>
+    <div class="btn-row"><input type="month" id="dv-mes" onchange="renderDiretores()" style="width:auto"></div>
+  </div>
+  <div id="dv-conteudo"></div>
+</div>
+
 <div id="tab-mapa" class="section">
   <div class="page-header">
     <div><div class="page-title">Mapa 3D do Piauí</div><div class="page-sub">Painel de acompanhamento — arraste para girar, role para zoom</div></div>
@@ -1328,6 +1343,7 @@ function iniciarListeners(){
     renderPoliticos();
   }, ()=>{});
 
+  iniciarListenerDiretores();
   onSnapshot(collection(db,'parceirosMunicipios'), snap=>{
     parceirosMunicipios = snap.docs.map(d=>({id:d.id,...d.data()}));
     if(document.getElementById("tab-mapa")?.classList.contains("active")) renderListaMunicipiosParceiros();
@@ -1364,6 +1380,153 @@ async function excluirLancamentoDB(id){
   await deleteDoc(doc(db,'lancamentos',id));
 }
 
+
+// ─── DIRETORES DE VENDAS ─────────────────────────────────────────────────────
+const DV_PADRAO=[{id:'iraildo',nome:'Iraildo',pct:30,deducao:10},{id:'salomao',nome:'Salomão',pct:20,deducao:10},{id:'miqueias',nome:'Miqueias',pct:30,deducao:10}];
+let diretoresDB=[]; let _dvSemeado=false;
+function dvLista(){
+  return DV_PADRAO.map(p=>{const d=diretoresDB.find(x=>x.id===p.id)||{};return {...p,...d,clientes:d.clientes||[],especiais:d.especiais||[]};})
+    .concat(diretoresDB.filter(d=>!DV_PADRAO.some(p=>p.id===d.id)).map(d=>({deducao:10,pct:0,clientes:[],especiais:[],...d})));
+}
+function dvSalvar(d){
+  const {id,...dados}=d;
+  return setDoc(doc(db,'diretoresVendas',id),dados);
+}
+function dvCalc(d,mes){
+  const linhas=[]; let aReceber=0;
+  d.clientes.forEach(cid=>{
+    const cli=clientes.find(c=>c.id===cid); if(!cli) return;
+    const esp=d.especiais.find(e=>e.clienteId===cid);
+    const pct=(esp&&esp.pct!==''&&esp.pct!=null)?Number(esp.pct):Number(d.pct);
+    const ded=(esp&&esp.deducao!==''&&esp.deducao!=null)?Number(esp.deducao):Number(d.deducao);
+    const soNF=esp?esp.soNF!==false:true;
+    lancamentos.filter(l=>l.clienteId===cid).forEach(l=>{
+      const nf=(l.formaPagamento||cli.formaPagamento)==='COM NF';
+      if(soNF&&!nf) return;
+      const v=Number(l.valor||0);
+      const com=v*(1-ded/100)*pct/100;
+      if(l.pago){
+        if((l.dataRecebimento||'').slice(0,7)===mes) linhas.push({cli:cli.nome,ref:l.mes,valor:v,ded,pct,com,esp:!!esp,nf});
+      } else if(l.mes===mes) aReceber+=com;
+    });
+  });
+  const cart=d.clientes.map(cid=>{
+    const cli=clientes.find(c=>c.id===cid); if(!cli) return null;
+    const esp=d.especiais.find(e=>e.clienteId===cid);
+    const pct=(esp&&esp.pct!==''&&esp.pct!=null)?Number(esp.pct):Number(d.pct);
+    const ded=(esp&&esp.deducao!==''&&esp.deducao!=null)?Number(esp.deducao):Number(d.deducao);
+    const soNF=esp?esp.soNF!==false:true;
+    const nf=cli.formaPagamento==='COM NF';
+    const v=Number(cli.valor||0);
+    const com=(soNF&&!nf)?0:v*(1-ded/100)*pct/100;
+    return {nome:cli.nome,valor:v,nf,ded,pct,com,esp:!!esp,sit:cli.situacao||'ativo'};
+  }).filter(Boolean).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+  return {cart,linhas,total:linhas.reduce((a,x)=>a+x.com,0),base:linhas.reduce((a,x)=>a+x.valor,0),aReceber};
+}
+window.renderDiretores=function(){
+  const box=document.getElementById('dv-conteudo'); if(!box) return;
+  const ae=document.activeElement;
+  if(ae && box.contains(ae) && ['INPUT','SELECT','TEXTAREA'].includes(ae.tagName) && ae.id!=='dv-mes') return;
+  const inp=document.getElementById('dv-mes'); if(!inp.value) inp.value=mesAtual();
+  const mes=inp.value;
+  const ordenados=[...clientes].sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+  const lista=dvLista();
+  let totalGeral=0;
+  const cards=lista.map(d=>{
+    const r=dvCalc(d,mes); totalGeral+=r.total;
+    const disp=ordenados.filter(c=>!d.clientes.includes(c.id));
+    const meusCli=d.clientes.map(id=>clientes.find(c=>c.id===id)).filter(Boolean).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+    return `<div class="card" style="margin-bottom:16px">
+      <div class="card-head"><span class="card-title">${d.nome}</span><span class="badge badge-green">${fmtBRL(r.total)} em ${fmtMes(mes)}</span></div>
+      <div class="card-body" style="padding:14px">
+        <div class="form-grid">
+          <div class="form-group"><label>Dedução padrão (%)</label><input type="number" step="0.01" value="${d.deducao}" onchange="dvEditarRegra('${d.id}','deducao',this.value)"></div>
+          <div class="form-group"><label>Comissão padrão (%)</label><input type="number" step="0.01" value="${d.pct}" onchange="dvEditarRegra('${d.id}','pct',this.value)"></div>
+          <div class="form-group"><label>Base recebida com NF</label><div style="padding:8px 0;font-weight:600">${fmtBRL(r.base)}</div></div>
+          <div class="form-group"><label>Comissão a vencer (NF em aberto no mês)</label><div style="padding:8px 0;font-weight:600">${fmtBRL(r.aReceber)}</div></div>
+        </div>
+        <div style="font-weight:600;font-size:13px;margin:4px 0 6px">Somatório da carteira de ${d.nome}</div>
+        ${(()=>{const at=r.cart.filter(x=>x.sit!=='suspenso'&&x.sit!=='encerrado');const t=(a,f)=>a.reduce((n,x)=>n+f(x),0);return `<div class="form-grid">
+          <div class="form-group"><label>Clientes (ativos / total)</label><div style="padding:8px 0;font-weight:600">${at.length} / ${r.cart.length}</div></div>
+          <div class="form-group"><label>Contratos por mês (ativos)</label><div style="padding:8px 0;font-weight:600">${fmtBRL(t(at,x=>x.valor))}</div></div>
+          <div class="form-group"><label>Dos quais com NF</label><div style="padding:8px 0;font-weight:600">${fmtBRL(t(at.filter(x=>x.nf),x=>x.valor))}</div></div>
+          <div class="form-group"><label>Comissão mensal estimada</label><div style="padding:8px 0;font-weight:600;color:var(--green)">${fmtBRL(t(at,x=>x.com))}</div></div>
+        </div>
+        ${r.cart.length?`<div style="overflow-x:auto;margin-bottom:12px"><table class="table" style="width:100%;font-size:12px;border-collapse:collapse"><thead><tr><th align="left">Cliente</th><th align="right">Mensal</th><th align="center">NF</th><th align="right">Com.</th><th align="right">Comissão est.</th></tr></thead><tbody>
+          ${r.cart.map(x=>`<tr style="border-top:1px solid var(--border);${x.sit!=='ativo'&&x.sit?'opacity:.5':''}"><td>${x.nome}${x.esp?' *':''}${x.sit!=='ativo'&&x.sit?' ('+x.sit+')':''}</td><td align="right">${fmtBRL(x.valor)}</td><td align="center">${x.nf?'Sim':'Não'}</td><td align="right">${x.pct}%</td><td align="right">${fmtBRL(x.com)}</td></tr>`).join('')}
+          <tr style="border-top:2px solid var(--border2);font-weight:700"><td>TOTAL (ativos)</td><td align="right">${fmtBRL(t(at,x=>x.valor))}</td><td></td><td></td><td align="right">${fmtBRL(t(at,x=>x.com))}</td></tr>
+          </tbody></table></div>`:''}`})()}
+        <div style="font-size:12px;color:var(--text2);margin-bottom:12px">Regra: valor com NF, menos ${d.deducao}%, vezes ${d.pct}% de comissão. Casos especiais abaixo substituem a regra para o cliente indicado.</div>
+
+        <div style="font-weight:600;font-size:13px;margin-bottom:6px">Clientes de ${d.nome} (${meusCli.length})</div>
+        <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+          <select id="dv-add-${d.id}" style="flex:1;min-width:180px"><option value="">Adicionar cliente...</option>${disp.map(c=>`<option value="${c.id}">${c.nome}</option>`).join('')}</select>
+          <button class="btn btn-primary btn-sm" onclick="dvAddCliente('${d.id}')">Adicionar</button>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">
+          ${meusCli.map(c=>{const e=d.especiais.find(x=>x.clienteId===c.id);return `<span class="chip" style="${e?'background:#fff4d6;border-color:#e0b800':''}">${c.nome}${e?' (especial)':''} <a href="javascript:void(0)" onclick="dvRemCliente('${d.id}','${c.id}')" style="margin-left:6px;color:var(--red);text-decoration:none" title="Remover">x</a></span>`}).join('')||'<span style="font-size:12px;color:var(--text3)">Nenhum cliente ainda</span>'}
+        </div>
+
+        <div style="font-weight:600;font-size:13px;margin-bottom:6px">Casos especiais</div>
+        ${d.especiais.map(e=>`<div class="alert-item" style="display:flex;justify-content:space-between;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
+          <div style="font-size:12px"><b>${(clientes.find(c=>c.id===e.clienteId)||{}).nome||'Cliente removido'}</b> · comissão ${e.pct!==''&&e.pct!=null?e.pct+'%':'padrão'} · dedução ${e.deducao!==''&&e.deducao!=null?e.deducao+'%':'padrão'} · ${e.soNF===false?'com ou sem NF':'só com NF'}${e.obs?'<br><span style="color:var(--text2)">'+e.obs+'</span>':''}</div>
+          <button class="btn btn-danger btn-sm" onclick="dvRemEspecial('${d.id}','${e.id}')">Remover</button></div>`).join('')||'<div style="font-size:12px;color:var(--text3);margin-bottom:6px">Nenhum caso especial</div>'}
+        <div class="form-grid" style="margin-top:10px">
+          <div class="form-group"><label>Cliente</label><select id="dv-e-cli-${d.id}"><option value="">Selecione...</option>${meusCli.map(c=>`<option value="${c.id}">${c.nome}</option>`).join('')}</select></div>
+          <div class="form-group"><label>Comissão % (vazio = padrão)</label><input type="number" step="0.01" id="dv-e-pct-${d.id}"></div>
+          <div class="form-group"><label>Dedução % (vazio = padrão)</label><input type="number" step="0.01" id="dv-e-ded-${d.id}"></div>
+          <div class="form-group"><label>Considerar</label><select id="dv-e-nf-${d.id}"><option value="1">Só com NF</option><option value="0">Com ou sem NF</option></select></div>
+          <div class="form-group full"><label>Observação (ex.: parceria, motivo da comissão menor)</label><input type="text" id="dv-e-obs-${d.id}"></div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="dvAddEspecial('${d.id}')">Registrar caso especial</button>
+
+        <div style="font-weight:600;font-size:13px;margin:18px 0 6px">Recebimentos de ${fmtMes(mes)}</div>
+        ${r.linhas.length?`<div style="overflow-x:auto"><table class="table" style="width:100%;font-size:12px;border-collapse:collapse"><thead><tr><th align="left">Cliente</th><th align="left">Ref.</th><th align="right">Valor</th><th align="right">Ded.</th><th align="right">Com.</th><th align="right">Comissão</th></tr></thead><tbody>
+          ${r.linhas.map(x=>`<tr style="border-top:1px solid var(--border)"><td>${x.cli}${x.esp?' *':''}</td><td>${fmtMes(x.ref)}</td><td align="right">${fmtBRL(x.valor)}</td><td align="right">${x.ded}%</td><td align="right">${x.pct}%</td><td align="right"><b>${fmtBRL(x.com)}</b></td></tr>`).join('')}
+          </tbody></table></div>`:'<div style="font-size:12px;color:var(--text3)">Nenhum recebimento com NF dos clientes dele neste mês</div>'}
+      </div></div>`;
+  }).join('');
+  box.innerHTML=`<div class="metrics" style="margin-bottom:16px"><div class="metric"><div class="metric-label">Total de comissões — ${fmtMes(mes)}</div><div class="metric-val">${fmtBRL(totalGeral)}</div><div class="metric-sub">calculado sobre recebimentos com NF</div></div>${lista.map(d=>{const c=dvCalc(d,mes).cart.filter(x=>x.sit!=='suspenso'&&x.sit!=='encerrado');return `<div class="metric"><div class="metric-label">${d.nome} · carteira</div><div class="metric-val">${fmtBRL(c.reduce((n,x)=>n+x.valor,0))}</div><div class="metric-sub">${c.length} clientes · comissão est. ${fmtBRL(c.reduce((n,x)=>n+x.com,0))}/mês</div></div>`}).join('')}</div>`+cards;
+};
+window.dvEditarRegra=async function(id,campo,v){
+  if(!requerAdmin()) return;
+  const d=dvLista().find(x=>x.id===id); d[campo]=Number(v); await dvSalvar(d); toast('Regra atualizada');
+};
+window.dvAddCliente=async function(id){
+  if(!requerAdmin()) return;
+  const cid=document.getElementById('dv-add-'+id).value; if(!cid) return;
+  const outro=dvLista().find(x=>x.id!==id&&x.clientes.includes(cid));
+  if(outro&&!window.confirm('Este cliente já está na lista de '+outro.nome+'. Adicionar mesmo assim?')) return;
+  const d=dvLista().find(x=>x.id===id); d.clientes=[...d.clientes,cid]; await dvSalvar(d);
+};
+window.dvRemCliente=async function(id,cid){
+  if(!requerAdmin()) return;
+  const d=dvLista().find(x=>x.id===id); d.clientes=d.clientes.filter(x=>x!==cid); d.especiais=d.especiais.filter(e=>e.clienteId!==cid); await dvSalvar(d);
+};
+window.dvAddEspecial=async function(id){
+  if(!requerAdmin()) return;
+  const g=k=>document.getElementById('dv-e-'+k+'-'+id).value;
+  if(!g('cli')){toast('Escolha o cliente do caso especial');return;}
+  const d=dvLista().find(x=>x.id===id);
+  d.especiais=d.especiais.filter(e=>e.clienteId!==g('cli'));
+  d.especiais.push({id:'e'+Date.now(),clienteId:g('cli'),pct:g('pct')===''?'':Number(g('pct')),deducao:g('ded')===''?'':Number(g('ded')),soNF:g('nf')==='1',obs:g('obs').trim()});
+  await dvSalvar(d); ['pct','ded','obs'].forEach(k=>document.getElementById('dv-e-'+k+'-'+id).value=''); toast('Caso especial registrado');
+};
+window.dvRemEspecial=async function(id,eid){
+  if(!requerAdmin()) return;
+  const d=dvLista().find(x=>x.id===id); d.especiais=d.especiais.filter(e=>e.id!==eid); await dvSalvar(d);
+};
+function iniciarListenerDiretores(){
+  onSnapshot(collection(db,'diretoresVendas'), snap=>{
+    diretoresDB=snap.docs.map(d=>({id:d.id,...d.data()}));
+    if(!_dvSemeado){
+      _dvSemeado=true;
+      DV_PADRAO.filter(p=>!diretoresDB.some(d=>d.id===p.id)).forEach(p=>{const {id,...dados}=p; setDoc(doc(db,'diretoresVendas',id),{...dados,clientes:[],especiais:[]});});
+    }
+    window.renderDiretores();
+  }, ()=>{});
+}
+
 // ─── NAVEGAÇÃO ───────────────────────────────────────────────────────────────
 window.goTab = function(t, el){
   document.querySelectorAll('.nav-item,.mobile-nav-item,.drawer-item').forEach(x=>x.classList.remove('active'));
@@ -1386,6 +1549,7 @@ function renderAll(){
   renderClientes();
   renderFechamento();
   renderPoliticos();
+  if(document.getElementById("tab-diretores")?.classList.contains("active")) window.renderDiretores();
   if(document.getElementById("tab-mapa")?.classList.contains("active")) renderMapa();
 }
 
@@ -2914,7 +3078,12 @@ async function criarLancamentosEmAberto(itens, idFixo){
 // ─── LIMPEZA: lançamentos futuros de clientes suspensos/encerrados ──────────
 function lancamentosDeSuspensos(){
   const inativos = new Set(clientes.filter(c=>c.situacao==='suspenso'||c.situacao==='encerrado').map(c=>c.id));
-  return lancamentos.filter(l=>inativos.has(l.clienteId) && !l.pago && diasAtraso(l.vencimento)<=0);
+  const inicio = new Map(clientes.filter(c=>c.mesInicio).map(c=>[c.id,c.mesInicio]));
+  // (1) a vencer de suspensos/encerrados; (2) pendentes de meses anteriores ao início do contrato (sem baixa)
+  return lancamentos.filter(l=>!l.pago && (
+    (inativos.has(l.clienteId) && diasAtraso(l.vencimento)<=0) ||
+    (inicio.has(l.clienteId) && l.mes && l.mes < inicio.get(l.clienteId))
+  ));
 }
 
 function atualizarBannerLimpeza(){
@@ -2928,7 +3097,7 @@ function atualizarBannerLimpeza(){
     b.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:400;background:#fff3cd;border:1px solid #e0b84c;border-radius:12px;padding:14px 16px;box-shadow:0 6px 20px rgba(0,0,0,.2);display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;font-size:14px;color:#5a4500';
     document.body.appendChild(b);
   }
-  b.innerHTML = `<span><b>${lista.length} lançamento(s) pendente(s) a vencer de clientes suspensos/encerrados</b> (${nomes}). Parcelas já vencidas e pagamentos com baixa não são afetados.</span>
+  b.innerHTML = `<span><b>${lista.length} lançamento(s) pendente(s) indevido(s)</b> (${nomes}): a vencer de clientes suspensos/encerrados ou de meses antes do início do contrato. Pagamentos com baixa não são afetados.</span>
     <button class="btn btn-primary" onclick="window.limparLancamentosSuspensos()">Remover ${lista.length} lançamento(s)</button>`;
 }
 
@@ -2936,7 +3105,7 @@ window.limparLancamentosSuspensos = async function(){
   if(!requerAdmin()) return;
   const lista = lancamentosDeSuspensos();
   if(!lista.length){ toast('Nada para remover'); return; }
-  if(!confirm(`Remover ${lista.length} lançamento(s) pendente(s) a vencer de clientes suspensos/encerrados?`)) return;
+  if(!confirm(`Remover ${lista.length} lançamento(s) pendente(s) indevido(s) (suspensos/encerrados ou anteriores ao início do contrato)? Pagamentos com baixa não serão afetados.`)) return;
   let batch = writeBatch(db), ops = 0;
   for(const l of lista){
     batch.delete(doc(db,'lancamentos',l.id));
